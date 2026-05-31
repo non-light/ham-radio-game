@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QSO Adventure — アマチュア無線交信シミュレーター</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+const G = {
+  bg:"#0a0f0a", panel:"#0d1a0d", panelBorder:"#1a3a1a",
+  green:"#00ff41", greenDim:"#00aa2a", greenFaint:"#003310",
+  amber:"#ffb800", red:"#ff3333", cyan:"#00ffcc", white:"#e8ffe8", gray:"#4a6a4a",
+};
+
+const css = `
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=VT323&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body,#root{height:100%;overflow:hidden;}
+  body{background:${G.bg};color:${G.green};font-family:'Share Tech Mono',monospace;overscroll-behavior:none;-webkit-text-size-adjust:100%;}
+  .scanlines{pointer-events:none;position:fixed;inset:0;z-index:9999;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.07) 2px,rgba(0,0,0,.07) 4px);}
+  .crt{animation:flicker 8s infinite;}
+  @keyframes flicker{0%,100%{opacity:1}92%{opacity:1}93%{opacity:.97}94%{opacity:1}97%{opacity:.98}98%{opacity:1}}
+  .glow-sm{text-shadow:0 0 4px currentColor;}
+  input,button,select{font-family:'Share Tech Mono',monospace;font-size:14px;}
+  ::-webkit-scrollbar{width:3px;}::-webkit-scrollbar-track{background:${G.greenFaint};}::-webkit-scrollbar-thumb{background:${G.greenDim};}
+  .msgIn{animation:msgIn .2s ease-out;}
+  @keyframes msgIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+  .tdot{animation:tdot 1.2s infinite;}
+  .tdot:nth-child(2){animation-delay:.2s}.tdot:nth-child(3){animation-delay:.4s}
+  @keyframes tdot{0%,100%{opacity:.2}50%{opacity:1}}
+  .vb{transition:height .08s;}
+  .hint-btn:active{background:${G.greenDim}!important;color:${G.bg}!important;}
+  .qslAnim{animation:qslIn .4s cubic-bezier(.175,.885,.32,1.275);}
+  @keyframes qslIn{from{opacity:0;transform:scale(.7) rotate(-3deg)}to{opacity:1;transform:scale(1) rotate(0)}}
+  button:hover{opacity:.85;}
+`;
+
+const BANDS = [
+  {id:"80m",label:"80m",freq:"3.5 MHz",diff:1,color:G.cyan},
+  {id:"40m",label:"40m",freq:"7.1 MHz",diff:2,color:G.green},
+  {id:"20m",label:"20m",freq:"14.2 MHz",diff:2,color:G.amber},
+  {id:"15m",label:"15m",freq:"21.2 MHz",diff:3,color:"#ff6600"},
+  {id:"CW", label:"CW", freq:"14.0 MHz",diff:4,color:G.red},
+  {id:"DX", label:"DX", freq:"28.5 MHz",diff:5,color:"#cc00ff"},
+];
+const MODES=["SSB","CW","FM","AM"];
+
+const OPERATORS={
+  "80m":{call:"JA1XYZ",name:"田中OM",  qth:"Tokyo, Japan",      qth_jp:"東京",rig:"IC-7300",ant:"ダイポール",avatar:"👴",bio:"ラグチュー大好き！初心者歓迎"},
+  "40m":{call:"JH3ABC",name:"鈴木さん",qth:"Osaka, Japan",      qth_jp:"大阪",rig:"FT-991A", ant:"八木アンテナ",avatar:"👨",bio:"DXが趣味。毎晩40mにいるよ"},
+  "20m":{call:"W6DXR", name:"Bob",     qth:"California, USA",  qth_jp:"California",rig:"IC-7610",ant:"Yagi 3el",avatar:"🧔",bio:"DX chaser! 100 countries worked."},
+  "15m":{call:"DL5KZT",name:"Klaus",   qth:"Munich, Germany",  qth_jp:"Munich",rig:"FT-DX101",ant:"4el Yagi",avatar:"👱",bio:"Contest operator. CQ WW every year!"},
+  "CW": {call:"JA7CW", name:"高橋OM",  qth:"Sendai, Japan",    qth_jp:"仙台",rig:"TS-990S",ant:"ループアンテナ",avatar:"🎩",bio:"CW歴40年。コードは心の言語。"},
+  "DX": {call:"VK9AA", name:"Steve",   qth:"Norfolk Island",   qth_jp:"Norfolk島",rig:"K3S",ant:"Vertical",avatar:"🌴",bio:"Rare DX station! Good signal to JA."},
+};
+
+const QSL_DESIGNS={
+  "80m":{bg:"#001a33",border:G.cyan,   icon:"🌙",label:"NIGHT OWL"},
+  "40m":{bg:"#0a1a00",border:G.green,  icon:"🌏",label:"JAPAN DOMESTIC"},
+  "20m":{bg:"#1a1000",border:G.amber,  icon:"🌎",label:"TRANS-PACIFIC"},
+  "15m":{bg:"#1a0a00",border:"#ff6600",icon:"🌍",label:"EURO DX"},
+  "CW": {bg:"#1a0000",border:G.red,    icon:"⚡",label:"CW MASTER"},
+  "DX": {bg:"#110033",border:"#cc00ff",icon:"🏝️",label:"RARE DX / IOTA"},
+};
+
+const FAKE_CALLS=["JA1AAA","JH2BBB","JR3CCC","JE4DDD","JA5EEE","JO6FFF","JA7GGG","JA8HHH"];
+const FAKE_QTH=["Tokyo","Kanagawa","Osaka","Aichi","Fukuoka","Hokkaido","Miyagi","Hiroshima"];
+
+function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function rst(){ return `5${Math.floor(Math.random()*3+7)}`; }
+
+function detect(txt){
+  const t=txt.toLowerCase();
+  return {
+    isCQ:     /cq|こーきゅう|呼出/.test(t),
+    isRST:    /rst|シグナル|信号|レポート|report|how copy/.test(t),
+    isQTH:    /qth|どこ|場所|where|location/.test(t),
+    isRig:    /rig|リグ|無線機|radio|machine/.test(t),
+    isAnt:    /ant|アンテナ|antenna/.test(t),
+    isName:   /名前|なまえ|name|who|お名前/.test(t),
+    isQSL:    /qsl|カード|card|bureau|direct| bureau/.test(t),
+    is73:     /73|sk|さようなら|バイ|bye|またね|ありがとう/.test(t),
+    isWX:     /天気|weather|wx|気象|temp|温度/.test(t),
+    isAge:    /年齢|歳|age|old|何歳/.test(t),
+    isLicense:/免許|ライセンス|license|免許証|級|class/.test(t),
+    isCW:     /cw|モールス|morse|電信/.test(t),
+    isPwr:    /出力|power|watt|ワット|pw/.test(t),
+  };
+}
+
+function generateReply(txt, op, band, mode, playerMode, turnCount){
+  const d = detect(txt);
+  const isBeginner = playerMode==="beginner";
+  const r = rst();
+  const isJA = op.call.startsWith("J");
+  const sign = `DE ${op.call} K`;
+
+  if(isBeginner){
+    if(d.isCQ || turnCount===0){
+      return pick([
+        `こんにちは！${op.call}です。\nコールサイン（CQ：呼び出し）、ありがとうございます！\nあなたの信号（シグナル）は${r}で、とても良好ですよ。\nQTH（運用場所）は${op.qth_jp}です。よろしくお願いします！`,
+        `お呼び出しありがとうございます！\nこちら${op.call}、${op.name}と申します。\nシグナルレポート（RST）は${r}。クリアに聞こえていますよ！\n初めてですか？ゆっくり交信しましょう！`,
+      ]);
+    }
+    if(d.isRST) return `あなたの信号レポート（RST）は${r}です！\nRSTは「了解度・強度・音調」の3つを数字で表します。\n59が最高ですよ。あなたは良い信号です！ ${sign}`;
+    if(d.isQTH) return `私のQTH（場所）は${op.qth_jp}です！\nQTHはアマチュア無線で「場所」を意味するQ符号です。\nあなたはどこから運用していますか？ ${sign}`;
+    if(d.isName) return `私の名前は${op.name}です。よろしくお願いします！\nあなたのお名前（ネーム）を教えてください。 ${sign}`;
+    if(d.isRig) return `私の無線機（リグ）は${op.rig}を使っています。\n最近の無線機はとても高性能ですね！\nあなたはどんなリグですか？ ${sign}`;
+    if(d.isAnt) return `アンテナは${op.ant}を使っています。\nアンテナの種類で飛び方がずいぶん変わります。\nあなたのアンテナは何ですか？ ${sign}`;
+    if(d.isQSL||d.is73) return pick([
+      `交信（QSO）ありがとうございました！\nQSLカードを送りますね。QSLとは「交信証」のことです。\n73（さようなら）！またお会いしましょう！ DE ${op.call} SK`,
+      `楽しい交信でした！73（ありがとう・さようなら）！\nQSLカードをビューロー経由で送ります。\nまたCQ出してくださいね！ DE ${op.call} SK`,
+    ]);
+    if(d.isWX) return `こちらの天気（WX）は晴れで、コンディション（伝搬）も良好です！\nコンディションが良いと遠くの局と交信できます。 ${sign}`;
+    if(d.isLicense) return `私は${isJA?"1":""}アマチュア無線技士の資格を持っています。\n資格があるとより高い出力で運用できます。\nあなたはどの級ですか？ ${sign}`;
+    return pick([
+      `なるほど！ありがとうございます。\n引き続き楽しく交信しましょう。\nQTH・リグ・アンテナなど何でも聞いてくださいね。 ${sign}`,
+      `了解しました！（QSL：了解の意）\nアマチュア無線の世界へようこそ！\n何か聞きたいことがあれば遠慮なくどうぞ。 ${sign}`,
+      `素晴らしいですね！\n無線は世界中の人と繋がれるのが魅力です。\n73を送る前にQSLカードの交換もできますよ！ ${sign}`,
+    ]);
+  }
+
+  const isCWmode = mode==="CW";
+  const laugh = isCWmode?"HI HI":"ハハ";
+  if(d.isCQ || turnCount===0){
+    return pick([
+      `${op.call} ${op.call} DE ${op.call}\nUR RST ${r} ${r} ${r}\nQTH ${op.qth} ${op.qth}\nNAME ${op.name} ${op.name}\nHW? ${sign}`,
+      `DE ${op.call} GA\nUR ${r} FB SIG\nQRK 5 QSA 5\nPSE UR RST AND QTH? BK`,
+    ]);
+  }
+  if(d.isRST) return `UR RST ${r} ${r}\nFB SIG, QSB少しあり\nHW? ${sign}`;
+  if(d.isQTH) return `MY QTH IS ${op.qth.toUpperCase()}\nGS (グリッドスクエア) PM85\nUR QTH? ${sign}`;
+  if(d.isName) return `MY NAME IS ${op.name.toUpperCase()} ${op.name.toUpperCase()}\nUR NAME? ${sign}`;
+  if(d.isRig) return `RIG HR IS ${op.rig.toUpperCase()}\nPWR 100W\nUR RIG? ${sign}`;
+  if(d.isAnt) return `ANT IS ${op.ant.toUpperCase()}\nQTH ANT HGT APDX 15M AGL\nUR ANT? ${sign}`;
+  if(d.isPwr) return `PWR HR 100W\nFB ANT SO SIG IS GOOD\nUR PWR? ${sign}`;
+  if(d.isQSL||d.is73){
+    return pick([
+      `TNX FER QSO ${op.call}\nUR RST ${r} FB\nPSE QSL VIA JARD BUREAU\n73 ES DX DE ${op.call} SK`,
+      `QSL QSL TNX\nFB QSO OM\nWILL QSL VIA BUREAU GL 73\nDE ${op.call} SK TU`,
+    ]);
+  }
+  if(d.isWX) return `WX HR FINE, TEMP APDX 20C\nMUF HIGH, BAND COND GOOD\n${sign}`;
+  if(d.isCW&&isCWmode) return `CW HR 25 WPM\nCW IS BEAUTY ${laugh}\n40YRS CW OP\n${sign}`;
+  return pick([
+    `QSL QSL\nFB INFO TNX\nCOND GOOD TODAY, QRM LOW\n${sign}`,
+    `R R FB\nQRN少しあり、QSB周期的\nHW CPY? ${sign}`,
+    `TNX INFO ${op.name}\nBND OPEN WELL TODAY\nQSY 14.250? ${sign}`,
+    `R TNX OM\nKEEP IT UP ES GL\nQRX 5 MIN WL BRB ${sign}`,
+  ]);
+}
+
+const HINTS={
+  beginner:(c)=>[`CQ CQ DE ${c} K`,`シグナルはどうですか？`,`QTH（場所）は？`,`お名前は？`,`リグ（無線機）は何ですか？`,`73！ありがとう！`],
+  expert:  (c)=>[`CQ CQ DE ${c} ${c} K`,`UR RST? BK`,`QTH? BK`,`RIG? ANT? BK`,`PSE QSL VIA BUREAU`,`73 DE ${c} SK`],
+};
+
+function VUMeter({active}){
+  const [bars,setBars]=useState(Array(7).fill(2));
+  useEffect(()=>{
+    if(!active){setBars(Array(7).fill(2));return;}
+    const id=setInterval(()=>setBars(prev=>prev.map(()=>Math.floor(Math.random()*16)+2)),80);
+    return()=>clearInterval(id);
+  },[active]);
+  return(
+    <div style={{display:"flex",alignItems:"flex-end",gap:2,height:20}}>
+      {bars.map((h,i)=>(
+        <div key={i} className="vb" style={{width:4,height:h,background:h>14?G.red:h>9?G.amber:G.green,borderRadius:1}}/>
+      ))}
+    </div>
+  );
+}
+
+function TypingBubble(){
+  return(
+    <div style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px"}}>
+      <div style={{background:"#0a1500",border:`1px solid ${G.panelBorder}`,borderRadius:"8px 8px 8px 2px",padding:"8px 12px",display:"flex",gap:5,alignItems:"center"}}>
+        {[0,1,2].map(i=><div key={i} className="tdot" style={{width:6,height:6,borderRadius:"50%",background:G.green}}/>)}
+      </div>
+      <VUMeter active/>
+    </div>
+  );
+}
+
+function QSLCardPopup({card,onClose}){
+  const d=QSL_DESIGNS[card.band];
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.9)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}} onClick={onClose}>
+      <div className="qslAnim" style={{width:"100%",maxWidth:320,background:d.bg,border:`3px solid ${d.border}`,borderRadius:8,padding:20,boxShadow:`0 0 40px ${d.border}44`}} onClick={e=>e.stopPropagation()}>
+        <div style={{textAlign:"center",marginBottom:12}}>
+          <div style={{fontSize:34}}>{d.icon}</div>
+          <div style={{fontFamily:"'Orbitron',monospace",fontSize:9,color:d.border,letterSpacing:3}}>QSL CARD — {d.label}</div>
+        </div>
+        <div style={{borderTop:`1px solid ${d.border}44`,borderBottom:`1px solid ${d.border}44`,padding:"10px 0",marginBottom:10,textAlign:"center"}}>
+          <div style={{fontFamily:"'Orbitron',monospace",fontSize:22,color:d.border,textShadow:`0 0 14px ${d.border}`}}>{card.theirCall}</div>
+          <div style={{fontSize:11,color:G.white,marginTop:3}}>{card.qth}</div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:5,fontSize:11}}>
+          {[["TO",card.myCall],["BAND",card.band],["MODE",card.mode],["RST",card.rst],["DATE",card.date]].map(([k,v])=>(
+            <div key={k} style={k==="DATE"?{gridColumn:"1/-1"}:{}}><span style={{color:G.gray}}>{k}: </span><span style={{color:G.white}}>{v}</span></div>
+          ))}
+        </div>
+        <div style={{marginTop:12,textAlign:"center",fontFamily:"'VT323',monospace",fontSize:14,color:G.gray}}>TNX FER QSO ✦ 73 de {card.theirCall}</div>
+        <button onClick={onClose} style={{marginTop:10,width:"100%",background:"transparent",border:`1px solid ${d.border}44`,color:d.border,padding:"6px",borderRadius:2,cursor:"pointer",fontSize:11}}>閉じる</button>
+      </div>
+    </div>
+  );
+}
+
+function Collection({items,onShow,onClose}){
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.92)",zIndex:500,overflowY:"auto",padding:16}} onClick={onClose}>
+      <div style={{maxWidth:380,margin:"0 auto"}} onClick={e=>e.stopPropagation()}>
+        <div style={{fontFamily:"'Orbitron',monospace",color:G.amber,marginBottom:12,fontSize:12}}>📁 QSLコレクション ({items.length}/{BANDS.length})</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          {items.map(card=>{
+            const d=QSL_DESIGNS[card.band];
+            return(
+              <div key={card.id} onClick={()=>onShow(card)} style={{background:d.bg,border:`2px solid ${d.border}`,borderRadius:4,padding:10,cursor:"pointer"}}>
+                <div style={{fontSize:20,textAlign:"center"}}>{d.icon}</div>
+                <div style={{fontFamily:"'Orbitron',monospace",fontSize:11,color:d.border,textAlign:"center",marginTop:4}}>{card.theirCall}</div>
+                <div style={{fontSize:10,color:G.gray,textAlign:"center"}}>{card.band}·{card.mode}</div>
+              </div>
+            );
+          })}
+          {Array(Math.max(0,BANDS.length-items.length)).fill(0).map((_,i)=>(
+            <div key={`e${i}`} style={{border:`1px dashed ${G.panelBorder}`,borderRadius:4,padding:10,display:"flex",alignItems:"center",justifyContent:"center"}}>
+              <span style={{color:G.panelBorder,fontSize:22}}>?</span>
+            </div>
+          ))}
+        </div>
+        <button onClick={onClose} style={{marginTop:12,width:"100%",background:"transparent",border:`1px solid ${G.greenDim}`,color:G.greenDim,padding:8,borderRadius:2,cursor:"pointer",fontSize:12}}>閉じる</button>
+      </div>
+    </div>
+  );
+}
+
+function Setup({onDone}){
+  const [step,setStep]=useState("mode");
+  const [playerMode,setPlayerMode]=useState(null);
+  const [callType,setCallType]=useState(null);
+  const [call,setCall]=useState("");
+  const [name,setName]=useState("");
+  const [qth,setQth]=useState("");
+  const [err,setErr]=useState("");
+
+  const pickAuto=()=>{
+    setCall(FAKE_CALLS[Math.floor(Math.random()*FAKE_CALLS.length)]);
+    setQth(FAKE_QTH[Math.floor(Math.random()*FAKE_QTH.length)]);
+    setCallType("auto");
+  };
+  const submit=()=>{
+    const c=call.trim().toUpperCase();
+    if(c.length<3){setErr("コールサインを入力してください");return;}
+    onDone({callsign:c,name:name.trim()||c,qth:qth.trim()||"Japan",playerMode});
+  };
+
+  if(step==="mode") return(
+    <div style={{minHeight:"100dvh",display:"flex",alignItems:"center",justifyContent:"center",background:G.bg,padding:20}}>
+      <div style={{width:"100%",maxWidth:360}}>
+        <div style={{textAlign:"center",marginBottom:28}}>
+          <div style={{fontFamily:"'Orbitron',monospace",fontSize:20,color:G.green,textShadow:`0 0 16px ${G.green}`}}>QSO ADVENTURE</div>
+          <div style={{fontSize:11,color:G.greenDim,marginTop:4,letterSpacing:2}}>アマチュア無線交信シミュレーター</div>
+          <div style={{fontSize:34,margin:"16px 0"}}>📡</div>
+          <div style={{fontSize:12,color:G.gray}}>モードを選んでください</div>
+        </div>
+        {[
+          {id:"beginner",icon:"🌱",title:"初心者モード",sub:"用語の解説つき。日本語でやさしく交信",color:G.cyan},
+          {id:"expert",  icon:"⚡",title:"玄人モード",  sub:"本格Q符号・英語フル活用。リアル交信体験",color:G.amber},
+        ].map(m=>(
+          <button key={m.id} onClick={()=>{setPlayerMode(m.id);setStep("callsign");}}
+            style={{display:"block",width:"100%",marginBottom:10,background:G.greenFaint,border:`2px solid ${m.color}44`,borderRadius:6,padding:"12px 14px",cursor:"pointer",textAlign:"left"}}>
+            <div style={{display:"flex",alignItems:"center",gap:12}}>
+              <span style={{fontSize:26}}>{m.icon}</span>
+              <div>
+                <div style={{fontFamily:"'Orbitron',monospace",fontSize:12,color:m.color}}>{m.title}</div>
+                <div style={{fontSize:11,color:G.gray,marginTop:2}}>{m.sub}</div>
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  return(
+    <div style={{minHeight:"100dvh",display:"flex",alignItems:"center",justifyContent:"center",background:G.bg,padding:20}}>
+      <div style={{width:"100%",maxWidth:360}}>
+        <button onClick={()=>{setStep("mode");setCallType(null);}} style={{background:"transparent",border:"none",color:G.gray,cursor:"pointer",fontSize:12,marginBottom:14,padding:0}}>← 戻る</button>
+        <div style={{fontFamily:"'Orbitron',monospace",fontSize:12,color:G.green,marginBottom:2}}>{playerMode==="beginner"?"🌱 初心者モード":"⚡ 玄人モード"}</div>
+        <div style={{fontSize:11,color:G.gray,marginBottom:20}}>コールサインを設定しよう</div>
+
+        {!callType&&(
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:18}}>
+            {[
+              {id:"own",icon:"🪪",label:"自分のコールサイン",sub:"免許取得済み"},
+              {id:"auto",icon:"🎲",label:"自動で割り当て",sub:"コールサインなしでもOK"},
+            ].map(t=>(
+              <button key={t.id} onClick={()=>t.id==="auto"?pickAuto():setCallType("own")}
+                style={{background:G.greenFaint,border:`1px solid ${G.greenDim}44`,borderRadius:4,padding:"12px 8px",cursor:"pointer",textAlign:"center"}}>
+                <div style={{fontSize:22}}>{t.icon}</div>
+                <div style={{fontSize:11,color:G.green,marginTop:6}}>{t.label}</div>
+                <div style={{fontSize:10,color:G.gray,marginTop:2}}>{t.sub}</div>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {callType==="auto"&&(
+          <div style={{background:G.greenFaint,border:`1px solid ${G.greenDim}`,borderRadius:4,padding:"10px 14px",marginBottom:14,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div>
+              <div style={{fontSize:10,color:G.gray}}>自動割り当て</div>
+              <div style={{fontFamily:"'Orbitron',monospace",fontSize:18,color:G.green}}>{call}</div>
+            </div>
+            <button onClick={pickAuto} style={{background:"transparent",border:`1px solid ${G.greenDim}44`,color:G.greenDim,fontSize:10,padding:"4px 8px",borderRadius:2,cursor:"pointer"}}>再抽選</button>
+          </div>
+        )}
+
+        {callType==="own"&&(
+          <div style={{marginBottom:12}}>
+            <label style={{display:"block",fontSize:10,color:G.greenDim,marginBottom:4,letterSpacing:2}}>コールサイン *</label>
+            <input value={call} onChange={e=>setCall(e.target.value.toUpperCase())} placeholder="例: JA1ABC"
+              style={{width:"100%",background:G.greenFaint,border:`1px solid ${G.greenDim}`,color:G.green,padding:"10px 12px",borderRadius:2,outline:"none",fontSize:16}}/>
+          </div>
+        )}
+
+        {callType&&(<>
+          {[{label:"ニックネーム",val:name,set:setName,ph:"例: 田中"},{label:"QTH (運用地)",val:qth,set:setQth,ph:"例: Tokyo"}].map(({label,val,set,ph})=>(
+            <div key={label} style={{marginBottom:10}}>
+              <label style={{display:"block",fontSize:10,color:G.greenDim,marginBottom:3,letterSpacing:2}}>{label}</label>
+              <input value={val} onChange={e=>set(e.target.value)} placeholder={ph}
+                style={{width:"100%",background:G.greenFaint,border:`1px solid ${G.greenDim}44`,color:G.green,padding:"9px 12px",borderRadius:2,outline:"none",fontSize:13}}/>
+            </div>
+          ))}
+          {err&&<div style={{color:G.red,fontSize:11,marginBottom:8}}>{err}</div>}
+          <button onClick={submit} style={{width:"100%",background:G.green,color:G.bg,border:"none",padding:12,borderRadius:2,fontFamily:"'Orbitron',monospace",fontSize:13,fontWeight:700,cursor:"pointer",boxShadow:`0 0 20px ${G.green}66`,letterSpacing:2}}>
+            CQ — 開局！
+          </button>
+        </>)}
+      </div>
+    </div>
+  );
+}
+
+function App(){
+  const [player,        setPlayer]        = useState(null);
+  const [band,          setBand]          = useState(BANDS[0]);
+  const [mode,          setMode]          = useState("SSB");
+  const [messages,      setMessages]      = useState([]);
+  const [input,         setInput]         = useState("");
+  const [typing,        setTyping]        = useState(false);
+  const [qslCollection, setQslCollection] = useState([]);
+  const [showQSL,       setShowQSL]       = useState(null);
+  const [showColl,      setShowColl]      = useState(false);
+  const [sigStr,        setSigStr]        = useState(59);
+  const [pendingQSL,    setPendingQSL]    = useState(false);
+  const turnRef  = useRef(0);
+  const chatRef  = useRef(null);
+
+  const op = OPERATORS[band.id];
+
+  useEffect(()=>{
+    setMessages([]); turnRef.current=0; setPendingQSL(false);
+    setSigStr(Math.floor(Math.random()*20)+50);
+  },[band.id,mode]);
+
+  useEffect(()=>{
+    chatRef.current?.scrollTo({top:chatRef.current.scrollHeight,behavior:"smooth"});
+  },[messages,typing]);
+
+  const hints = player ? HINTS[player.playerMode](player.callsign) : [];
+  const alreadyHasCard = qslCollection.find(c=>c.theirCall===op.call&&c.band===band.id);
+
+  const sendMsg = useCallback(async(text)=>{
+    const txt=(text??input).trim();
+    if(!txt||typing) return;
+    setInput("");
+
+    const d=detect(txt);
+    if(d.isQSL||d.is73) setPendingQSL(true);
+
+    setMessages(p=>[...p,{role:"user",text:txt,ts:new Date()}]);
+    setTyping(true);
+
+    const delay = 600+Math.random()*800;
+    await new Promise(r=>setTimeout(r,delay));
+
+    const reply = generateReply(txt, op, band, mode, player.playerMode, turnRef.current);
+    turnRef.current++;
+
+    if(reply.toLowerCase().includes("qsl")||reply.toLowerCase().includes("bureau")||reply.toLowerCase().includes("sk")) setPendingQSL(true);
+    setSigStr(Math.floor(Math.random()*20)+50);
+    setMessages(p=>[...p,{role:"assistant",text:reply,ts:new Date()}]);
+    setTyping(false);
+  },[input,typing,op,band,mode,player]);
+
+  const collectQSL=()=>{
+    if(!pendingQSL||alreadyHasCard) return;
+    const card={id:Date.now(),band:band.id,theirCall:op.call,myCall:player.callsign,qth:op.qth,mode,rst:`${sigStr}`,date:new Date().toLocaleDateString("ja-JP")};
+    setQslCollection(p=>{
+      const ex=p.find(c=>c.theirCall===card.theirCall&&c.band===card.band);
+      return ex?p:[...p,card];
+    });
+    setShowQSL(card); setPendingQSL(false);
+  };
+
+  if(!player) return <Setup onDone={setPlayer}/>;
+
+  return(<>
+    <style>{css}</style>
+    <div className="scanlines"/>
+    <div className="crt" style={{height:"100dvh",display:"flex",flexDirection:"column",background:G.bg,overflow:"hidden"}}>
+
+      <div style={{background:G.panel,borderBottom:`2px solid ${G.panelBorder}`,padding:"6px 10px",flexShrink:0}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <span style={{fontSize:20}}>{op.avatar}</span>
+            <div>
+              <div className="glow-sm" style={{fontFamily:"'Orbitron',monospace",fontSize:13,color:band.color}}>{op.call}</div>
+              <div style={{fontSize:10,color:G.gray}}>{op.qth}</div>
+            </div>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2}}>
+            <div style={{fontSize:10,color:G.gray}}>SIG {sigStr} | QSL:<span style={{color:G.amber}}>{qslCollection.length}</span></div>
+            <VUMeter active={typing}/>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:4,marginTop:6,overflowX:"auto",paddingBottom:2}}>
+          {BANDS.map(b=>(
+            <button key={b.id} onClick={()=>setBand(b)}
+              style={{padding:"2px 7px",fontSize:10,cursor:"pointer",borderRadius:2,flexShrink:0,border:`1px solid ${b.color}55`,background:band.id===b.id?b.color:"transparent",color:band.id===b.id?G.bg:b.color,fontFamily:"'Orbitron',monospace",boxShadow:band.id===b.id?`0 0 8px ${b.color}`:undefined}}>
+              {b.label}
+            </button>
+          ))}
+          <select value={mode} onChange={e=>setMode(e.target.value)}
+            style={{marginLeft:"auto",background:G.greenFaint,border:`1px solid ${G.greenDim}`,color:G.green,padding:"2px 4px",borderRadius:2,fontSize:10,cursor:"pointer",flexShrink:0}}>
+            {MODES.map(m=><option key={m}>{m}</option>)}
+          </select>
+        </div>
+        <div style={{marginTop:4,fontSize:10,color:G.gray}}>
+          📻 {band.freq}·{mode} <span style={{color:G.greenDim}}>{op.bio}</span>{" "}
+          <span style={{fontSize:9,color:player.playerMode==="beginner"?G.cyan:G.amber}}>[{player.playerMode==="beginner"?"初心者":"玄人"}]</span>
+        </div>
+      </div>
+
+      <div ref={chatRef} style={{flex:1,overflowY:"auto",padding:"10px",display:"flex",flexDirection:"column",gap:7}}>
+        {messages.length===0&&(
+          <div style={{textAlign:"center",color:G.gray,fontSize:12,marginTop:32}}>
+            <div style={{fontSize:28,marginBottom:8}}>📡</div>
+            <div>{band.freq} · {mode}</div>
+            <div style={{marginTop:4}}>{op.call} が待機中...</div>
+            <div style={{marginTop:8,color:G.greenDim,fontSize:11}}>下のボタンか自由入力で交信開始！</div>
+          </div>
+        )}
+        {messages.map((msg,i)=>{
+          const isMe=msg.role==="user";
+          return(
+            <div key={i} className="msgIn" style={{display:"flex",justifyContent:isMe?"flex-end":"flex-start",gap:6,alignItems:"flex-end"}}>
+              {!isMe&&<span style={{fontSize:18,flexShrink:0}}>{op.avatar}</span>}
+              <div style={{maxWidth:"78%"}}>
+                <div style={{fontSize:10,color:G.gray,marginBottom:2,textAlign:isMe?"right":"left"}}>{isMe?player.callsign:op.call}</div>
+                <div style={{background:isMe?G.greenFaint:"#0a1500",border:`1px solid ${isMe?G.greenDim:G.panelBorder}`,borderRadius:isMe?"8px 8px 2px 8px":"8px 8px 8px 2px",padding:"7px 11px",color:isMe?G.green:G.white,fontSize:13,lineHeight:1.5,whiteSpace:"pre-wrap"}}>
+                  {msg.text}
+                </div>
+                <div style={{fontSize:10,color:G.gray,marginTop:2,textAlign:isMe?"right":"left"}}>{msg.ts.toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"})}</div>
+              </div>
+              {isMe&&<span style={{fontSize:14,flexShrink:0}}>🎙️</span>}
+            </div>
+          );
+        })}
+        {typing&&<TypingBubble/>}
+      </div>
+
+      {(pendingQSL||qslCollection.length>0)&&(
+        <div style={{background:G.panel,borderTop:`1px solid ${G.panelBorder}`,padding:"5px 10px",display:"flex",gap:8,alignItems:"center",flexShrink:0}}>
+          {pendingQSL&&!alreadyHasCard&&(
+            <button onClick={collectQSL} style={{background:G.amber,color:G.bg,border:"none",padding:"4px 10px",borderRadius:2,fontSize:11,fontFamily:"'Orbitron',monospace",cursor:"pointer",boxShadow:`0 0 10px ${G.amber}66`}}>
+              📮 QSL受領
+            </button>
+          )}
+          {alreadyHasCard&&<span style={{fontSize:10,color:G.gray}}>✓ QSL取得済み</span>}
+          {qslCollection.length>0&&(
+            <button onClick={()=>setShowColl(s=>!s)} style={{background:"transparent",color:G.cyan,border:`1px solid ${G.cyan}44`,padding:"4px 8px",borderRadius:2,fontSize:11,cursor:"pointer"}}>
+              📁 ({qslCollection.length})
+            </button>
+          )}
+        </div>
+      )}
+
+      <div style={{background:G.panel,borderTop:`1px solid ${G.panelBorder}`,padding:"4px 8px",display:"flex",gap:5,overflowX:"auto",flexShrink:0}}>
+        {hints.map((h,i)=>(
+          <button key={i} className="hint-btn" onClick={()=>sendMsg(h)}
+            style={{background:G.greenFaint,border:`1px solid ${G.greenDim}22`,color:G.greenDim,padding:"3px 8px",borderRadius:2,fontSize:10,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>
+            {h}
+          </button>
+        ))}
+      </div>
+
+      <div style={{background:G.panel,borderTop:`2px solid ${G.panelBorder}`,padding:"7px 10px",display:"flex",gap:8,flexShrink:0}}>
+        <input value={input} onChange={e=>setInput(e.target.value)}
+          onKeyDown={e=>e.key==="Enter"&&sendMsg()}
+          placeholder={`DE ${player.callsign} ... K`}
+          style={{flex:1,background:G.greenFaint,border:`1px solid ${G.greenDim}`,color:G.green,padding:"9px 10px",borderRadius:2,outline:"none",fontSize:13,minWidth:0}}
+        />
+        <button onClick={()=>sendMsg()} disabled={typing||!input.trim()}
+          style={{background:typing?G.greenFaint:G.green,color:typing?G.greenDim:G.bg,border:"none",padding:"0 14px",borderRadius:2,cursor:typing?"not-allowed":"pointer",fontFamily:"'Orbitron',monospace",fontSize:11,fontWeight:700,boxShadow:typing?"none":`0 0 10px ${G.green}66`,flexShrink:0}}>
+          TX
+        </button>
+      </div>
+
+      <div style={{background:"#050f05",borderTop:`1px solid ${G.panelBorder}`,padding:"3px 10px",display:"flex",justifyContent:"space-between",fontSize:10,color:G.gray,flexShrink:0}}>
+        <span>DE <span style={{color:G.green}}>{player.callsign}</span> / {player.qth}</span>
+        <span style={{color:band.color}}>{band.freq} {mode}</span>
+      </div>
+    </div>
+
+    {showColl&&<Collection items={qslCollection} onShow={c=>{setShowQSL(c);setShowColl(false);}} onClose={()=>setShowColl(false)}/>}
+    {showQSL&&<QSLCardPopup card={showQSL} onClose={()=>setShowQSL(null)}/>}
+  </>);
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
