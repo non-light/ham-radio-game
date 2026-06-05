@@ -479,6 +479,14 @@ function Setup({onDone}){
       gap:10,
     }}>
       <style>{`
+        @keyframes pulse-green {
+          0%,100%{box-shadow:0 0 0 0 rgba(0,255,65,0.5),0 0 12px 4px rgba(0,255,65,0.2)}
+          50%{box-shadow:0 0 0 10px rgba(0,255,65,0),0 0 20px 8px rgba(0,255,65,0.1)}
+        }
+        @keyframes pulse-amber {
+          0%,100%{box-shadow:0 0 0 0 rgba(255,184,0,0.5),0 0 12px 4px rgba(255,184,0,0.2)}
+          50%{box-shadow:0 0 0 10px rgba(255,184,0,0),0 0 20px 8px rgba(255,184,0,0.1)}
+        }
         .mode-btn {
           position:absolute;
           border-radius:50%;
@@ -487,12 +495,17 @@ function Setup({onDone}){
           cursor:pointer;
           padding:0;
           transform:translate(-50%,-50%);
-          transition:box-shadow 0.2s;
         }
-        .mode-btn:hover { box-shadow:0 0 28px 8px rgba(255,255,255,0.18); }
-        .mode-btn-green:hover { box-shadow:0 0 32px 10px rgba(0,255,65,0.35) !important; }
-        .mode-btn-amber:hover { box-shadow:0 0 32px 10px rgba(255,184,0,0.35) !important; }
-        .mode-btn:active { transform:translate(-50%,-50%) scale(0.94); }
+        .mode-btn-green {
+          animation:pulse-green 2s ease-in-out infinite;
+        }
+        .mode-btn-amber {
+          animation:pulse-amber 2s ease-in-out infinite;
+          animation-delay:1s;
+        }
+        .mode-btn-green:hover { box-shadow:0 0 40px 14px rgba(0,255,65,0.5) !important; animation:none; }
+        .mode-btn-amber:hover { box-shadow:0 0 40px 14px rgba(255,184,0,0.5) !important; animation:none; }
+        .mode-btn:active { transform:translate(-50%,-50%) scale(0.88); }
       `}</style>
 
       {/* Image container — exact aspect ratio 1293:816 */}
@@ -505,21 +518,29 @@ function Setup({onDone}){
       }}>
         <img src={BG_IMG} style={{width:"100%",height:"100%",display:"block"}}/>
 
-        {/* Gemini watermark cover — tiny dark patch bottom-right corner */}
+        {/* Gemini watermark cover */}
         <div style={{position:"absolute",right:0,bottom:0,width:"7%",height:"9%",background:"radial-gradient(ellipse at 100% 100%,#1a1000cc,transparent)"}}/>
 
-        {/* GREEN circle — 初心者モード (BCモード) at ~13%, 74% */}
+        {/* GREEN circle — 初心者モード。クリックで即スタート */}
         <button
           className="mode-btn mode-btn-green"
-          onClick={()=>{setPlayerMode("beginner");setStep("callsign");}}
+          onClick={()=>{
+            const c=pick(FAKE_CALLS);
+            const q=pick(FAKE_QTH);
+            onDone({callsign:c,name:c,qth:q,playerMode:"beginner"});
+          }}
           style={{left:"13%",top:"74%",width:"14%",aspectRatio:"1"}}
           aria-label="初心者モード"
         />
 
-        {/* AMBER circle — 玄人モード at ~87%, 74% */}
+        {/* AMBER circle — 玄人モード。クリックで即スタート */}
         <button
           className="mode-btn mode-btn-amber"
-          onClick={()=>{setPlayerMode("expert");setStep("callsign");}}
+          onClick={()=>{
+            const c=pick(FAKE_CALLS);
+            const q=pick(FAKE_QTH);
+            onDone({callsign:c,name:c,qth:q,playerMode:"expert"});
+          }}
           style={{left:"87%",top:"74%",width:"14%",aspectRatio:"1"}}
           aria-label="玄人モード"
         />
