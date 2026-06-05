@@ -468,61 +468,65 @@ function Setup({onDone}){
   };
 
   if(step==="mode") return(
-    <div style={bgStyle}>
-      {/* Background image */}
-      <div style={{position:"absolute",inset:0,backgroundImage:`url('${BG_IMG}')`,backgroundSize:"cover",backgroundPosition:"center"}}/>
-      {/* Slight dark vignette for readability */}
-      <div style={{position:"absolute",inset:0,background:"rgba(0,4,0,0.38)"}}/>
+    <div style={{
+      minHeight:"100dvh",
+      display:"flex",
+      flexDirection:"column",
+      alignItems:"center",
+      justifyContent:"center",
+      background:"#050905",
+      padding:"8px",
+      gap:10,
+    }}>
+      <style>{`
+        .mode-btn {
+          position:absolute;
+          border-radius:50%;
+          background:transparent;
+          border:none;
+          cursor:pointer;
+          padding:0;
+          transform:translate(-50%,-50%);
+          transition:box-shadow 0.2s;
+        }
+        .mode-btn:hover { box-shadow:0 0 28px 8px rgba(255,255,255,0.18); }
+        .mode-btn-green:hover { box-shadow:0 0 32px 10px rgba(0,255,65,0.35) !important; }
+        .mode-btn-amber:hover { box-shadow:0 0 32px 10px rgba(255,184,0,0.35) !important; }
+        .mode-btn:active { transform:translate(-50%,-50%) scale(0.94); }
+      `}</style>
 
-      {/* Bottom-right: decorative amber power knob covering Gemini watermark */}
-      <div style={{position:"absolute",bottom:0,right:0,width:"21%",height:"30%",display:"flex",alignItems:"center",justifyContent:"center",zIndex:2}}>
-        <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse at 80% 90%,#1a1000cc,#0d1000aa,transparent)"}}/>
-        <svg width="58" height="58" viewBox="0 0 58 58" style={{position:"relative",zIndex:1}}>
-          <defs>
-            <radialGradient id="pwrKnob" cx="36%" cy="30%">
-              <stop offset="0%" stopColor="#4a2e00"/>
-              <stop offset="100%" stopColor="#180e00"/>
-            </radialGradient>
-          </defs>
-          <circle cx="29" cy="29" r="26" fill="#100800" stroke="#3a2000" strokeWidth="2.5"/>
-          <circle cx="29" cy="29" r="20" fill="url(#pwrKnob)" stroke="#6a4400" strokeWidth="2"/>
-          <circle cx="29" cy="29" r="12" fill="#0c0700" stroke="#4a3000" strokeWidth="1"/>
-          {[0,45,90,135,180,225,270,315].map((a,i)=>{
-            const rad=a*Math.PI/180;
-            const x1=29+22*Math.sin(rad),y1=29-22*Math.cos(rad);
-            const x2=29+26*Math.sin(rad),y2=29-26*Math.cos(rad);
-            return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#3a2000" strokeWidth="1"/>;
-          })}
-          <line x1="29" y1="11" x2="29" y2="21" stroke="#ffb800" strokeWidth="3" strokeLinecap="round"/>
-          <text x="29" y="50" textAnchor="middle" fill="#5a3a00" fontSize="6.5" fontFamily="monospace">PWR</text>
-        </svg>
+      {/* Image container — exact aspect ratio 1293:816 */}
+      <div style={{
+        position:"relative",
+        width:"100%",
+        maxWidth:"min(100%, calc(90dvh * 1.584))",
+        aspectRatio:"1293 / 816",
+        flexShrink:0,
+      }}>
+        <img src={BG_IMG} style={{width:"100%",height:"100%",display:"block"}}/>
+
+        {/* Gemini watermark cover — tiny dark patch bottom-right corner */}
+        <div style={{position:"absolute",right:0,bottom:0,width:"7%",height:"9%",background:"radial-gradient(ellipse at 100% 100%,#1a1000cc,transparent)"}}/>
+
+        {/* GREEN circle — 初心者モード (BCモード) at ~13%, 74% */}
+        <button
+          className="mode-btn mode-btn-green"
+          onClick={()=>{setPlayerMode("beginner");setStep("callsign");}}
+          style={{left:"13%",top:"74%",width:"14%",aspectRatio:"1"}}
+          aria-label="初心者モード"
+        />
+
+        {/* AMBER circle — 玄人モード at ~87%, 74% */}
+        <button
+          className="mode-btn mode-btn-amber"
+          onClick={()=>{setPlayerMode("expert");setStep("callsign");}}
+          style={{left:"87%",top:"74%",width:"14%",aspectRatio:"1"}}
+          aria-label="玄人モード"
+        />
       </div>
 
-      {/* CRT display overlay */}
-      <div style={crtOverlay}>
-        <div style={scanOverlay}/>
-        <div style={{position:"relative",zIndex:2}}>
-          <div style={{textAlign:"center",marginBottom:22}}>
-            <div style={{fontFamily:"'Orbitron',monospace",fontSize:19,color:G.green,textShadow:`0 0 16px ${G.green}, 0 0 32px ${G.green}66`,letterSpacing:2}}>QSO ADVENTURE</div>
-            <div style={{fontSize:10,color:G.greenDim,marginTop:5,letterSpacing:3}}>アマチュア無線交信シミュレーター</div>
-            <div style={{marginTop:14,borderTop:`1px solid ${G.panelBorder}`,paddingTop:12,fontSize:11,color:G.gray}}>モードを選んでください</div>
-          </div>
-          {[
-            {id:"beginner",icon:"🌱",title:"初心者モード",sub:"用語の解説つき。日本語でやさしく交信",color:G.cyan},
-            {id:"expert",  icon:"⚡",title:"玄人モード",  sub:"本格Q符号・英語フル活用。リアル交信体験",color:G.amber},
-          ].map(m=>(
-            <button key={m.id} onClick={()=>{setPlayerMode(m.id);setStep("callsign");}}
-              style={{display:"block",width:"100%",marginBottom:10,background:"rgba(0,20,0,0.55)",border:`2px solid ${m.color}55`,borderRadius:4,padding:"11px 14px",cursor:"pointer",textAlign:"left"}}>
-              <div style={{display:"flex",alignItems:"center",gap:12}}>
-                <span style={{fontSize:24}}>{m.icon}</span>
-                <div>
-                  <div style={{fontFamily:"'Orbitron',monospace",fontSize:11,color:m.color,letterSpacing:1}}>{m.title}</div>
-                  <div style={{fontSize:10,color:G.gray,marginTop:3}}>{m.sub}</div>
-                </div>
-              </div>
-            </button>
-          ))}
-        </div>
+      <div style={{fontSize:11,color:"#3a5a3a",fontFamily:"monospace",letterSpacing:2,textAlign:"center"}}>
+        ◀ 初心者モード &nbsp;&nbsp;&nbsp; 玄人モード ▶
       </div>
     </div>
   );
