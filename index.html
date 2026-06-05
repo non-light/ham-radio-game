@@ -59,12 +59,12 @@ const BANDS = [
 const MODES=["SSB","CW","FM","AM"];
 
 const OPERATORS={
-  "80m":{call:"JA1XYZ",name:"田中OM",  qth:"Tokyo, Japan",      qth_jp:"東京",rig:"IC-7300",ant:"ダイポール",avatar:"👴",bio:"ラグチュー大好き！初心者歓迎"},
-  "40m":{call:"JH3ABC",name:"鈴木さん",qth:"Osaka, Japan",      qth_jp:"大阪",rig:"FT-991A", ant:"八木アンテナ",avatar:"👨",bio:"DXが趣味。毎晩40mにいるよ"},
-  "20m":{call:"W6DXR", name:"Bob",     qth:"California, USA",  qth_jp:"California",rig:"IC-7610",ant:"Yagi 3el",avatar:"🧔",bio:"DX chaser! 100 countries worked."},
-  "15m":{call:"DL5KZT",name:"Klaus",   qth:"Munich, Germany",  qth_jp:"Munich",rig:"FT-DX101",ant:"4el Yagi",avatar:"👱",bio:"Contest operator. CQ WW every year!"},
-  "CW": {call:"JA7CW", name:"高橋OM",  qth:"Sendai, Japan",    qth_jp:"仙台",rig:"TS-990S",ant:"ループアンテナ",avatar:"🎩",bio:"CW歴40年。コードは心の言語。"},
-  "DX": {call:"VK9AA", name:"Steve",   qth:"Norfolk Island",   qth_jp:"Norfolk島",rig:"K3S",ant:"Vertical",avatar:"🌴",bio:"Rare DX station! Good signal to JA."},
+  "80m":{call:"7J0RAG",name:"田中OM",  qth:"Tokyo, Japan",      qth_jp:"東京",rig:"IC-7300",ant:"ダイポール",avatar:"👴",bio:"ラグチュー大好き！初心者歓迎"},
+  "40m":{call:"7J0DXK",name:"鈴木さん",qth:"Osaka, Japan",      qth_jp:"大阪",rig:"FT-991A", ant:"八木アンテナ",avatar:"👨",bio:"DXが趣味。毎晩40mにいるよ"},
+  "20m":{call:"7J0TPC",name:"Bob",     qth:"California, USA",  qth_jp:"California",rig:"IC-7610",ant:"Yagi 3el",avatar:"🧔",bio:"DX chaser! 100 countries worked."},
+  "15m":{call:"7J0EUR",name:"Klaus",   qth:"Munich, Germany",  qth_jp:"Munich",rig:"FT-DX101",ant:"4el Yagi",avatar:"👱",bio:"Contest operator. CQ WW every year!"},
+  "CW": {call:"7J0CWM",name:"高橋OM",  qth:"Sendai, Japan",    qth_jp:"仙台",rig:"TS-990S",ant:"ループアンテナ",avatar:"🎩",bio:"CW歴40年。コードは心の言語。"},
+  "DX": {call:"7J0IOT",name:"Steve",   qth:"Norfolk Island",   qth_jp:"Norfolk島",rig:"K3S",ant:"Vertical",avatar:"🌴",bio:"Rare DX station! Good signal to JA."},
 };
 
 const QSL_DESIGNS={
@@ -76,7 +76,7 @@ const QSL_DESIGNS={
   "DX": {bg:"#110033",border:"#cc00ff",icon:"🏝️",label:"RARE DX / IOTA"},
 };
 
-const FAKE_CALLS=["JA1AAA","JH2BBB","JR3CCC","JE4DDD","JA5EEE","JO6FFF","JA7GGG","JA8HHH"];
+const FAKE_CALLS=["7J0AAA","7J0BBB","7J0CCC","7J0DDD","7J0EEE","7J0FFF","7J0GGG","7J0HHH"];
 const FAKE_QTH=["Tokyo","Kanagawa","Osaka","Aichi","Fukuoka","Hokkaido","Miyagi","Hiroshima"];
 
 function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
@@ -833,6 +833,11 @@ function App(){
             TX
           </button>
         </div>
+      </div>
+
+      {/* Disclaimer */}
+      <div style={{background:"#050905",borderTop:`1px solid #0a1a0a`,padding:"2px 10px",flexShrink:0,textAlign:"center"}}>
+        <span style={{fontSize:9,color:"#2a3a2a",fontFamily:"monospace"}}>※ 登場するコールサインはすべて架空です。実在の局とは無関係です。</span>
       </div>
 
       {/* Bottom panel decoration */}
