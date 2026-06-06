@@ -834,14 +834,29 @@ function App(){
   const [showColl,      setShowColl]      = useState(false);
   const [sigStr,        setSigStr]        = useState(59);
   const [pendingQSL,    setPendingQSL]    = useState(false);
+  const [qsoEnded,      setQsoEnded]      = useState(false);
   const turnRef  = useRef(0);
   const chatRef  = useRef(null);
 
   const startGame=(p)=>{ setBandNPCs(randomizeBandNPCs()); setPlayer(p); };
   const op = bandNPCs[band.id] || NPC_POOL[0];
 
+  // スタート画面に戻る
+  const resetGame=()=>{
+    setPlayer(null);
+    setMessages([]);
+    setBand(BANDS[0]);
+    setMode("SSB");
+    setInput("");
+    setPendingQSL(false);
+    setQsoEnded(false);
+    setShowQSL(null);
+    setShowColl(false);
+    turnRef.current=0;
+  };
+
   useEffect(()=>{
-    setMessages([]); turnRef.current=0; setPendingQSL(false);
+    setMessages([]); turnRef.current=0; setPendingQSL(false); setQsoEnded(false);
     setSigStr(Math.floor(Math.random()*20)+50);
   },[band.id,mode]);
 
@@ -870,6 +885,7 @@ function App(){
     turnRef.current++;
 
     if(reply.toLowerCase().includes("qsl")||reply.toLowerCase().includes("bureau")||reply.toLowerCase().includes("sk")) setPendingQSL(true);
+    if(/ sk\b/i.test(reply)||reply.includes("DE "+op.call+" SK")) setQsoEnded(true);
     setSigStr(Math.floor(Math.random()*20)+50);
     setMessages(p=>[...p,{role:"assistant",text:reply,ts:new Date()}]);
     setTyping(false);
@@ -928,9 +944,23 @@ function App(){
                 <div style={{fontSize:10,color:G.gray}}>{op.qth}</div>
               </div>
             </div>
-            <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2}}>
-              <div style={{fontSize:10,color:G.gray}}>SIG {sigStr} | QSL:<span style={{color:G.amber}}>{qslCollection.length}</span></div>
-              <VUMeter active={typing}/>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2}}>
+                <div style={{fontSize:10,color:G.gray}}>SIG {sigStr} | QSL:<span style={{color:G.amber}}>{qslCollection.length}</span></div>
+                <VUMeter active={typing}/>
+              </div>
+              {/* ホームに戻るボタン（常設） */}
+              <button onClick={resetGame} title="スタート画面に戻る" style={{
+                background:"transparent",
+                border:`1px solid ${G.gray}44`,
+                color:G.gray,
+                fontSize:16,
+                width:28,height:28,
+                borderRadius:4,
+                cursor:"pointer",
+                display:"flex",alignItems:"center",justifyContent:"center",
+                flexShrink:0,
+              }}>🏠</button>
             </div>
           </div>
           <div style={{display:"flex",gap:4,marginTop:6,overflowX:"auto",paddingBottom:2}}>
@@ -1029,6 +1059,58 @@ function App(){
             );
           })}
           {typing&&<TypingBubble/>}
+
+          {/* 交信終了バナー */}
+          {qsoEnded&&!typing&&(
+            <div style={{
+              margin:"12px 10px 4px",
+              background: player.playerMode==="beginner"
+                ? "rgba(0,60,20,0.5)"
+                : "rgba(0,30,10,0.6)",
+              border:`1px solid ${G.green}55`,
+              borderRadius: player.playerMode==="beginner" ? 12 : 4,
+              padding:"12px 16px",
+              display:"flex",
+              flexDirection:"column",
+              alignItems:"center",
+              gap:8,
+              flexShrink:0,
+            }}>
+              <div style={{fontSize:11,color:G.greenDim,textAlign:"center"}}>
+                {player.playerMode==="beginner"
+                  ? "🎉 交信（QSO）が終わりました！お疲れさまでした！"
+                  : "✦ QSO COMPLETE — 73 de "+op.call}
+              </div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap",justifyContent:"center"}}>
+                <button onClick={resetGame} style={{
+                  background:G.green,
+                  color:G.bg,
+                  border:"none",
+                  padding: player.playerMode==="beginner" ? "8px 20px" : "6px 14px",
+                  borderRadius: player.playerMode==="beginner" ? 20 : 2,
+                  cursor:"pointer",
+                  fontFamily:"'Orbitron',monospace",
+                  fontSize: player.playerMode==="beginner" ? 13 : 11,
+                  fontWeight:700,
+                  boxShadow:`0 0 16px ${G.green}66`,
+                  letterSpacing:1,
+                }}>
+                  {player.playerMode==="beginner" ? "🏠 スタートに戻る" : "🏠 HOME / QRT"}
+                </button>
+                <button onClick={()=>setQsoEnded(false)} style={{
+                  background:"transparent",
+                  color:G.gray,
+                  border:`1px solid ${G.gray}44`,
+                  padding: player.playerMode==="beginner" ? "8px 16px" : "6px 12px",
+                  borderRadius: player.playerMode==="beginner" ? 20 : 2,
+                  cursor:"pointer",
+                  fontSize:11,
+                }}>
+                  {player.playerMode==="beginner" ? "続けて話す" : "続ける / CONTINUE"}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* QSL BAR */}
