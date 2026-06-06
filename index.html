@@ -782,8 +782,10 @@ function App(){
   const [sigStr,        setSigStr]        = useState(59);
   const [pendingQSL,    setPendingQSL]    = useState(false);
   const [qsoEnded,      setQsoEnded]      = useState(false);
-  const turnRef  = useRef(0);
-  const chatRef  = useRef(null);
+  const turnRef      = useRef(0);
+  const chatRef      = useRef(null);
+  const textareaRef  = useRef(null);   // 送信後のDOM直接クリア用
+  const lastEnterRef = useRef(0);      // ダブルEnter検知用タイムスタンプ
 
   const startGame=(p)=>{ setBandNPCs(randomizeBandNPCs()); setPlayer(p); };
   const op = bandNPCs[band.id] || NPC_POOL[0];
@@ -818,6 +820,8 @@ function App(){
     const txt=(text??input).trim();
     if(!txt||typing) return;
     setInput("");
+    // モバイルIMEなどで残る場合のDOM直接クリア
+    if(textareaRef.current) textareaRef.current.value="";
 
     const d=detect(txt);
     if(d.isQSL||d.is73) setPendingQSL(true);
@@ -1110,19 +1114,25 @@ function App(){
         {/* INPUT */}
         <div style={{background:"#080e08",borderTop:`2px solid ${G.panelBorder}`,padding:"7px 10px",display:"flex",gap:8,flexShrink:0,alignItems:"flex-end"}}>
           <textarea
+            ref={textareaRef}
             value={input}
             onChange={e=>setInput(e.target.value)}
             onKeyDown={e=>{
-              if(e.key==="Enter"){
-                // 直前の文字がEnter（改行）なら送信、そうでなければ改行
-                if(e.target.value.endsWith("\n") && e.target.value.trim()){
-                  e.preventDefault();
-                  sendMsg();
-                }
-                // else: 自然に改行を挿入（何もしない）
+              if(e.key!=="Enter") return;
+              // IME変換確定中（日本語変換など）は無視
+              if(e.isComposing || e.keyCode===229) return;
+              const now=Date.now();
+              const diff=now-lastEnterRef.current;
+              lastEnterRef.current=now;
+              if(diff<600 && input.trim()){
+                // 600ms以内に2回Enter → 送信
+                e.preventDefault();
+                lastEnterRef.current=0; // リセット
+                sendMsg();
               }
+              // 1回目のEnterは改行として通常通り挿入
             }}
-            placeholder={player.playerMode==="beginner" ? "話しかけてみよう...\n（2回Enterで送信）" : `DE ${player.callsign} ... K`}
+            placeholder={player.playerMode==="beginner" ? "話しかけてみよう...\n（Enterで改行、2回で送信）" : `DE ${player.callsign} ... K`}
             rows={2}
             style={{
               flex:1,
