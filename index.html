@@ -656,6 +656,59 @@ function Setup({onDone}){
         {/* Gemini watermark cover */}
         <div style={{position:"absolute",right:0,bottom:0,width:"7%",height:"9%",background:"radial-gradient(ellipse at 100% 100%,#1a1000cc,transparent)"}}/>
 
+        {/* ── 文字化け修正オーバーレイ ──────────────────── */}
+
+        {/* 中央CRTディスプレイの文字化けテキストを上書き */}
+        <div style={{
+          position:"absolute",left:"29%",top:"58%",width:"43%",height:"19%",
+          background:"rgba(4,12,4,0.93)",
+          borderRadius:3,
+          display:"flex",flexDirection:"column",justifyContent:"center",
+          padding:"0 10px",gap:"3%",
+          pointerEvents:"none",
+        }}>
+          <div style={{display:"flex",alignItems:"center",gap:"4%"}}>
+            <span style={{fontSize:"min(2.2vw,14px)",flexShrink:0}}>🌱</span>
+            <div>
+              <div style={{fontSize:"min(1.8vw,12px)",color:"#7acc7a",fontFamily:"monospace"}}>初心者モード</div>
+              <div style={{fontSize:"min(1.2vw,9px)",color:"#4a6a4a",fontFamily:"monospace"}}>用語の解説つき。日本語でやさしく交信</div>
+            </div>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:"4%"}}>
+            <span style={{fontSize:"min(2.2vw,14px)",flexShrink:0}}>⚡</span>
+            <div>
+              <div style={{fontSize:"min(1.8vw,12px)",color:"#cccc55",fontFamily:"monospace"}}>玄人モード</div>
+              <div style={{fontSize:"min(1.2vw,9px)",color:"#6a6a33",fontFamily:"monospace"}}>本格Q符号・英語フル活用。リアル交信体験</div>
+            </div>
+          </div>
+        </div>
+
+        {/* 左下ラベル（初心者モード）の文字化けを上書き */}
+        <div style={{
+          position:"absolute",left:"4%",top:"84%",width:"33%",height:"12%",
+          background:"linear-gradient(to bottom,transparent,rgba(8,8,5,0.97) 40%)",
+          display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-end",
+          padding:"0 0 2%",
+          pointerEvents:"none",
+        }}>
+          <div style={{fontSize:"min(2.2vw,13px)",color:"#c8a832",fontFamily:"serif",fontWeight:"bold",letterSpacing:"0.05em"}}>初心者モード</div>
+          <div style={{fontSize:"min(1.3vw,9px)",color:"#706040",fontFamily:"monospace",marginTop:"1%",textAlign:"center"}}>用語の解説つき。日本語でやさしく交信</div>
+        </div>
+
+        {/* 右下ラベル（玄人モード）の文字化けを上書き */}
+        <div style={{
+          position:"absolute",right:"3%",top:"84%",width:"30%",height:"12%",
+          background:"linear-gradient(to bottom,transparent,rgba(8,8,5,0.97) 40%)",
+          display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-end",
+          padding:"0 0 2%",
+          pointerEvents:"none",
+        }}>
+          <div style={{fontSize:"min(2.2vw,13px)",color:"#c8a832",fontFamily:"serif",fontWeight:"bold",letterSpacing:"0.05em"}}>玄人モード</div>
+          <div style={{fontSize:"min(1.3vw,9px)",color:"#706040",fontFamily:"monospace",marginTop:"1%",textAlign:"center"}}>本格Q符号・英語フル活用。リアル交信体験</div>
+        </div>
+
+        {/* ────────────────────────────────────────────── */}
+
         {/* GREEN circle — 初心者モード。クリックで即スタート */}
         <button
           className="mode-btn mode-btn-green"
