@@ -952,15 +952,19 @@ function App(){
                   textAlign:"center",
                 }}>
                   <div style={{fontSize:13,color:G.green,marginBottom:6}}>👇 まずここを押してみよう！</div>
-                  <div style={{
-                    display:"inline-block",
-                    background:G.green,
-                    color:G.bg,
-                    borderRadius:20,
-                    padding:"6px 16px",
-                    fontSize:13,
-                    fontWeight:"bold",
-                  }}>📡 呼びかけてみる！</div>
+                  <button
+                    onClick={()=>sendMsg(`CQ CQ DE ${player.callsign} K`)}
+                    style={{
+                      background:G.green,
+                      color:G.bg,
+                      border:"none",
+                      borderRadius:20,
+                      padding:"8px 20px",
+                      fontSize:13,
+                      fontWeight:"bold",
+                      cursor:"pointer",
+                      boxShadow:`0 0 16px ${G.green}66`,
+                    }}>📡 呼びかけてみる！</button>
                   <div style={{fontSize:11,color:G.gray,marginTop:8}}>または下のボタンを押すか、自由に話しかけてね</div>
                 </div>
               </div>
