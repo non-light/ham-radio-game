@@ -58,14 +58,27 @@ const BANDS = [
 ];
 const MODES=["SSB","CW","FM","AM"];
 
-const OPERATORS={
-  "80m":{call:"7J0RAG",name:"田中OM",  qth:"Tokyo, Japan",      qth_jp:"東京",rig:"IC-7300",ant:"ダイポール",avatar:"👴",bio:"ラグチュー大好き！初心者歓迎"},
-  "40m":{call:"7J0DXK",name:"鈴木さん",qth:"Osaka, Japan",      qth_jp:"大阪",rig:"FT-991A", ant:"八木アンテナ",avatar:"👨",bio:"DXが趣味。毎晩40mにいるよ"},
-  "20m":{call:"7J0TPC",name:"Bob",     qth:"California, USA",  qth_jp:"California",rig:"IC-7610",ant:"Yagi 3el",avatar:"🧔",bio:"DX chaser! 100 countries worked."},
-  "15m":{call:"7J0EUR",name:"Klaus",   qth:"Munich, Germany",  qth_jp:"Munich",rig:"FT-DX101",ant:"4el Yagi",avatar:"👱",bio:"Contest operator. CQ WW every year!"},
-  "CW": {call:"7J0CWM",name:"高橋OM",  qth:"Sendai, Japan",    qth_jp:"仙台",rig:"TS-990S",ant:"ループアンテナ",avatar:"🎩",bio:"CW歴40年。コードは心の言語。"},
-  "DX": {call:"7J0IOT",name:"Steve",   qth:"Norfolk Island",   qth_jp:"Norfolk島",rig:"K3S",ant:"Vertical",avatar:"🌴",bio:"Rare DX station! Good signal to JA."},
-};
+// ─── NPC POOL: 毎回ランダムに割り当てられる個性豊かなキャラクター ───
+const NPC_POOL=[
+  {call:"7J0RAG",name:"田中OM",    qth:"Tokyo, Japan",       qth_jp:"東京",   rig:"IC-7300",   ant:"ダイポール",    avatar:"👴",personality:"elder",      bio:"ラグチュー大好き！初心者大歓迎ですよ"},
+  {call:"7J0WAN",name:"渡辺さん",  qth:"Osaka, Japan",       qth_jp:"大阪",   rig:"FT-991A",   ant:"八木アンテナ",  avatar:"😎",personality:"kansai",     bio:"DXやったら任せてや！関西から世界を狙う"},
+  {call:"7J0FRK",name:"山田さん",  qth:"Kanagawa, Japan",    qth_jp:"神奈川", rig:"IC-705",    ant:"バーチカル",    avatar:"😄",personality:"young",      bio:"無線楽しい！いろんな局と話したい"},
+  {call:"7J0CWM",name:"高橋OM",   qth:"Sendai, Japan",      qth_jp:"仙台",   rig:"TS-990S",   ant:"ループアンテナ",avatar:"🎩",personality:"cw_purist", bio:"CW一筋40年。コードは音楽だ"},
+  {call:"7J0NWB",name:"中村くん",  qth:"Saitama, Japan",     qth_jp:"埼玉",   rig:"FT-818ND",  ant:"付属ホイップ",  avatar:"🌟",personality:"newbie",    bio:"去年免許取ったばかり。よろしくです！"},
+  {call:"7J0QPR",name:"小林さん",  qth:"Nagano, Japan",      qth_jp:"長野",   rig:"自作機 5W", ant:"ロングワイヤー",avatar:"🔧",personality:"qrp",       bio:"QRP5Wで世界と繋がる感動を"},
+  {call:"7J0CNT",name:"佐々木さん",qth:"Fukuoka, Japan",     qth_jp:"福岡",   rig:"FT-DX10",   ant:"モノバンド八木",avatar:"🏆",personality:"contest",   bio:"コンテスター。ナンバー交換ならまかせて"},
+  {call:"7J0OKN",name:"比嘉さん",  qth:"Okinawa, Japan",     qth_jp:"沖縄",   rig:"IC-7610",   ant:"ダイポール",    avatar:"🌺",personality:"friendly",  bio:"ちゅらうちなーから毎晩出てます！"},
+  {call:"7J0TPC",name:"Bob",       qth:"California, USA",    qth_jp:"California",rig:"IC-7610",ant:"Yagi 3el",    avatar:"🧔",personality:"foreigner_en",bio:"West Coast DX chaser. 100+ countries!"},
+  {call:"7J0EUR",name:"Klaus",     qth:"Munich, Germany",    qth_jp:"Munich", rig:"FT-DX101",  ant:"4el Yagi",     avatar:"👱",personality:"contest",   bio:"Contest machine. CQ WW every year!"},
+  {call:"7J0IOT",name:"Steve",     qth:"Norfolk Island",     qth_jp:"Norfolk島",rig:"K3S",     ant:"Vertical",     avatar:"🌴",personality:"foreigner_en",bio:"Rare DXCC! Working JA every evening"},
+  {call:"7J0SEO",name:"Ji-woo",    qth:"Seoul, Korea",       qth_jp:"ソウル", rig:"TS-590SG",  ant:"DP",           avatar:"🎵",personality:"friendly",  bio:"안녕! Korean ham, let's QSO!"},
+];
+function randomizeBandNPCs(){
+  const s=[...NPC_POOL].sort(()=>Math.random()-.5);
+  const r={};
+  BANDS.forEach((b,i)=>{r[b.id]=s[i%NPC_POOL.length];});
+  return r;
+}
 
 const QSL_DESIGNS={
   "80m":{bg:"#001a33",border:G.cyan,   icon:"🌙",label:"NIGHT OWL"},
@@ -101,66 +114,180 @@ function detect(txt){
   };
 }
 
-function generateReply(txt, op, band, mode, playerMode, turnCount){
-  const d = detect(txt);
-  const isBeginner = playerMode==="beginner";
-  const r = rst();
-  const isJA = op.call.startsWith("J");
-  const sign = `DE ${op.call} K`;
+// ─── 初心者モード用: 個性つき挨拶 ───
+const BEG_GREET={
+  elder:        (o,r)=>[`はいはい、${o.call}の${o.name}でございますよ！\nお呼び出し（CQ）いただきありがとうございます。\n信号レポート（RST）は${r}、大変明瞭ですぞ。\nQTH（場所）は${o.qth_jp}でございます！`],
+  kansai:       (o,r)=>[`おお！${o.call}の${o.name}やで！\nCQ（呼び出し）呼んでくれてありがとやで！\nシグナル（RST）は${r}でバッチリやん！\nQTH（場所）は${o.qth_jp}や！よろしくやで〜！`],
+  young:        (o,r)=>[`あ、${o.call}の${o.name}です！\nCQ（呼び出し）ありがとうございます！\nシグナル（RST）は${r}でめっちゃきれいです！\nQTH（場所）は${o.qth_jp}ですよ！`],
+  cw_purist:    (o,r)=>[`${o.call}、${o.name}です。\nシグナルレポート（RST）は${r}、明瞭です。\nQTH（場所）は${o.qth_jp}です。よろしく。`],
+  newbie:       (o,r)=>[`あ、${o.call}の${o.name}です！\nCQ（呼び出し）ありがとうございます！えーと、\nシグナル（RST）は...${r}です！（合ってますか？笑）\nQTH（場所）は${o.qth_jp}です！`],
+  qrp:          (o,r)=>[`${o.call}の${o.name}です！QRPer（低電力運用者）です！\nCQ（呼び出し）ありがとうございます！\n5Wで信号（RST）${r}届いてよかった！\nQTH（場所）は${o.qth_jp}ですよ！`],
+  contest:      (o,r)=>[`${o.call}の${o.name}です。\nCQ（呼び出し）ありがとうございます。\nシグナルレポート（RST）は${r}です。\nQTH（場所）は${o.qth_jp}です。`],
+  friendly:     (o,r)=>[`こんにちは！${o.call}の${o.name}です！\nCQ（呼び出し）ありがとうございます！\nシグナル（RST）は${r}でバッチリです！\nQTH（場所）は${o.qth_jp}から出ています！`],
+  foreigner_en: (o,r)=>[`Hello！${o.call}の${o.name}といいます！\nCQ（呼び出し）ありがとうございます！\nRST（シグナルレポート）は${r}ですよ！\nQTH（場所）は${o.qth_jp}です！`],
+};
+const BEG_QSL={
+  elder:        (o)=>[`楽しい交信（QSO）でございました！\nQSLカード（交信証）はビューロー経由でお送りします。\n73（さようなら）！またどうぞ！ DE ${o.call} SK`],
+  kansai:       (o)=>[`めっちゃ楽しかったで！\nQSLカード（交信証）はビューロー経由で送るわ！\n73（さようなら）！またな！ DE ${o.call} SK`],
+  young:        (o)=>[`楽しかったです！\nQSLカード（交信証）送りますね！\n73（さようなら）！またぜひ！ DE ${o.call} SK`],
+  cw_purist:    (o)=>[`交信（QSO）ありがとうございました。\nQSLカード（交信証）ビューロー経由で送ります。\n73！ DE ${o.call} SK`],
+  newbie:       (o)=>[`ありがとうございました！\nQSLカード（交信証）...ビューロー経由ですよね？送ります！\n73（さようなら）！ DE ${o.call} SK`],
+  qrp:          (o)=>[`QRP交信、ありがとうございました！\nQSLカード（交信証）ビューローで送ります。73！ DE ${o.call} SK`],
+  contest:      (o)=>[`交信（QSO）ありがとうございました。\nQSLカード（交信証）はビューロー経由です。73！ DE ${o.call} SK`],
+  friendly:     (o)=>[`楽しい交信（QSO）でした！\nQSLカード（交信証）送りますね！73（さようなら）！ DE ${o.call} SK`],
+  foreigner_en: (o)=>[`Thank you for QSO（交信）！\nQSLカード（交信証）送ります！\n73（さようなら）！またぜひ！ DE ${o.call} SK`],
+};
 
-  if(isBeginner){
-    if(d.isCQ || turnCount===0){
-      return pick([
-        `こんにちは！${op.call}です。\nコールサイン（CQ：呼び出し）、ありがとうございます！\nあなたの信号（シグナル）は${r}で、とても良好ですよ。\nQTH（運用場所）は${op.qth_jp}です。よろしくお願いします！`,
-        `お呼び出しありがとうございます！\nこちら${op.call}、${op.name}と申します。\nシグナルレポート（RST）は${r}。クリアに聞こえていますよ！\n初めてですか？ゆっくり交信しましょう！`,
-      ]);
-    }
-    if(d.isRST) return `あなたの信号レポート（RST）は${r}です！\nRSTは「了解度・強度・音調」の3つを数字で表します。\n59が最高ですよ。あなたは良い信号です！ ${sign}`;
-    if(d.isQTH) return `私のQTH（場所）は${op.qth_jp}です！\nQTHはアマチュア無線で「場所」を意味するQ符号です。\nあなたはどこから運用していますか？ ${sign}`;
-    if(d.isName) return `私の名前は${op.name}です。よろしくお願いします！\nあなたのお名前（ネーム）を教えてください。 ${sign}`;
-    if(d.isRig) return `私の無線機（リグ）は${op.rig}を使っています。\n最近の無線機はとても高性能ですね！\nあなたはどんなリグですか？ ${sign}`;
-    if(d.isAnt) return `アンテナは${op.ant}を使っています。\nアンテナの種類で飛び方がずいぶん変わります。\nあなたのアンテナは何ですか？ ${sign}`;
-    if(d.isQSL||d.is73) return pick([
-      `交信（QSO）ありがとうございました！\nQSLカードを送りますね。QSLとは「交信証」のことです。\n73（さようなら）！またお会いしましょう！ DE ${op.call} SK`,
-      `楽しい交信でした！73（ありがとう・さようなら）！\nQSLカードをビューロー経由で送ります。\nまたCQ出してくださいね！ DE ${op.call} SK`,
-    ]);
-    if(d.isWX) return `こちらの天気（WX）は晴れで、コンディション（伝搬）も良好です！\nコンディションが良いと遠くの局と交信できます。 ${sign}`;
-    if(d.isLicense) return `私は${isJA?"1":""}アマチュア無線技士の資格を持っています。\n資格があるとより高い出力で運用できます。\nあなたはどの級ですか？ ${sign}`;
-    return pick([
-      `なるほど！ありがとうございます。\n引き続き楽しく交信しましょう。\nQTH・リグ・アンテナなど何でも聞いてくださいね。 ${sign}`,
-      `了解しました！（QSL：了解の意）\nアマチュア無線の世界へようこそ！\n何か聞きたいことがあれば遠慮なくどうぞ。 ${sign}`,
-      `素晴らしいですね！\n無線は世界中の人と繋がれるのが魅力です。\n73を送る前にQSLカードの交換もできますよ！ ${sign}`,
-    ]);
+// ─── 玄人モード用: 個性全開の応答 ───
+const EXPERT_RESP={
+  elder:{
+    greeting:(o,r)=>[`はいはい、${o.call}、${o.name}でございます！\nUR RST ${r} ${r}、誠に明瞭ですぞ。\nQTH ${o.qth_jp}、RIG ${o.rig}でまいります。\nどうぞよろしく！ DE ${o.call} K`,`おお、お呼び出しありがとうございます！\n${o.call}でございますよ。RST ${r}で大変良好です。\n${o.qth_jp}から毎晩出ておりますよ。 DE ${o.call} K`],
+    rst:(o,r)=>[`UR RST ${r} ${r}でございます。誠に明瞭ですぞ。 DE ${o.call} K`,`${r}で大変クリアです。良い信号ですなあ。 DE ${o.call} K`],
+    qth:(o,r)=>[`QTH ${o.qth_jp}でございます。もう30年ここから出ておりますよ。UR QTH? DE ${o.call} K`,`${o.qth_jp}ですよ。昔からの土地でございます。 DE ${o.call} K`],
+    rig:(o,r)=>[`リグは${o.rig}でございます。大満足ですよ。UR RIG? DE ${o.call} K`,`${o.rig}でまいります。今の無線機は誠によくできておりますなあ。 DE ${o.call} K`],
+    ant:(o,r)=>[`アンテナは${o.ant}でございます。こつこつ作りましてね。 DE ${o.call} K`,`${o.ant}ですよ。設置は大変でしたが大満足です。 DE ${o.call} K`],
+    name_q:(o,r)=>[`名前は${o.name}でございますよ。UR NAME? DE ${o.call} K`],
+    qsl:(o,r)=>[`楽しい交信でございました！QSLはビューロー経由でお送りします。\n73！またいつでもどうぞ！ DE ${o.call} SK`,`ありがとうございました。QSL必ずお送りします。またお話ししましょうな。73！ DE ${o.call} SK`],
+    wx:(o,r)=>[`WX良好でございます。コンディションも上々ですよ。 DE ${o.call} K`],
+    license:(o,r)=>[`1アマを持っておりますよ。長い勉強でしたが取れてよかったです。UR? DE ${o.call} K`],
+    generic:(o,r)=>[`なるほどなあ。ありがとうございます。無線はよいものですな。 DE ${o.call} K`,`そうですそうです。QSL、了解でございます。 DE ${o.call} K`,`おっしゃる通りですぞ。またいつでもどうぞ。 DE ${o.call} K`],
+  },
+  kansai:{
+    greeting:(o,r)=>[`おお！${o.call}やで！${o.name}や！\nシグナル${r}、めっちゃバッチリやん！\nQTH ${o.qth_jp}から飛ばしとるで！よろしくやで〜！ DE ${o.call} K`,`呼んでくれてありがとやで！\n${o.call}局や！シグナル${r}でばっちり入感しとるで！\nどこから呼んでくれたん？ DE ${o.call} K`],
+    rst:(o,r)=>[`${r}やで！ばっちり聞こえとるで！ DE ${o.call} K`,`RST ${r}！ええ信号やん！ DE ${o.call} K`],
+    qth:(o,r)=>[`QTH ${o.qth_jp}やで！大阪から世界狙っとるんや！UR QTH？ DE ${o.call} K`,`${o.qth_jp}でっせ！これがええんよ〜。 DE ${o.call} K`],
+    rig:(o,r)=>[`リグは${o.rig}やで！なかなかええやろ？UR RIG? DE ${o.call} K`,`${o.rig}使っとる！最高やと思うわ。 DE ${o.call} K`],
+    ant:(o,r)=>[`アンテナは${o.ant}やで！これで世界飛ばしとるんや！ DE ${o.call} K`,`${o.ant}でっせ！UR ANT? DE ${o.call} K`],
+    name_q:(o,r)=>[`${o.name}やで！よろしくな！UR NAME? DE ${o.call} K`],
+    qsl:(o,r)=>[`めっちゃ楽しかったで！QSLビューロー経由で送るわ！73！またな！ DE ${o.call} SK`,`ありがとやで！また呼んでや〜！73！ DE ${o.call} SK`],
+    wx:(o,r)=>[`WXはええで！コンディションもバッチリやん！ DE ${o.call} K`],
+    license:(o,r)=>[`1アマ持っとるで！勉強大変やったけどな笑。UR免許は？ DE ${o.call} K`],
+    generic:(o,r)=>[`ほんまに！そうやんなあ。無線って最高やで！ DE ${o.call} K`,`なるほどな〜！おもろい！ DE ${o.call} K`,`そうかそうか！QSL！ DE ${o.call} K`],
+  },
+  young:{
+    greeting:(o,r)=>[`${o.call}です！${o.name}って言います！\nシグナル${r}でめっちゃきれいに聞こえてます！\n${o.qth_jp}から出てますよ、よろしくです！ DE ${o.call} K`,`こんにちは！${o.call}、${o.name}です！\n信号${r}でバッチリです！どこから呼んでくれましたか？ DE ${o.call} K`],
+    rst:(o,r)=>[`${r}です！バッチリ聞こえてますよ〜！ DE ${o.call} K`,`RST ${r}！めちゃくちゃきれいです！ DE ${o.call} K`],
+    qth:(o,r)=>[`${o.qth_jp}ですよ！いつもここから出てます！UR QTH? DE ${o.call} K`,`QTH ${o.qth_jp}！いい場所ですよ！ DE ${o.call} K`],
+    rig:(o,r)=>[`${o.rig}使ってます！コスパ最高だと思います笑 UR RIG? DE ${o.call} K`,`リグは${o.rig}です！お気に入りですよ〜。 DE ${o.call} K`],
+    ant:(o,r)=>[`${o.ant}ですよ！すごく飛びます！UR ANT? DE ${o.call} K`,`アンテナは${o.ant}です！設置頑張りました笑 DE ${o.call} K`],
+    name_q:(o,r)=>[`${o.name}です！よろしくです！UR NAME? DE ${o.call} K`],
+    qsl:(o,r)=>[`楽しかったです！QSLカード送りますね！73！またぜひ！ DE ${o.call} SK`,`ありがとうございました！またお願いします！73！ DE ${o.call} SK`],
+    wx:(o,r)=>[`天気いいですよ！コンディションも上々です！ DE ${o.call} K`],
+    license:(o,r)=>[`2アマです！もっと上目指してます！UR免許は？ DE ${o.call} K`],
+    generic:(o,r)=>[`なるほど！それ初めて知りました！勉強になります！ DE ${o.call} K`,`そうなんですね！無線っておもしろいですよね！ DE ${o.call} K`,`了解です！ありがとうございます！ DE ${o.call} K`],
+  },
+  cw_purist:{
+    greeting:(o,r)=>[`${o.call} DE ${o.call}\nUR RST ${r} ${r} FB\nQTH ${o.qth_jp} NAME ${o.name}\nHW? DE ${o.call} K`,`DE ${o.call} GA UR ${r} FB SIG\nPSE UR RST QTH NAME? BK`],
+    rst:(o,r)=>[`UR ${r} ${r} FB SIG DE ${o.call} K`,`RST ${r} HW? DE ${o.call} K`],
+    qth:(o,r)=>[`QTH ${o.qth_jp} UR QTH? DE ${o.call} K`,`MY QTH ${o.qth_jp} HW? DE ${o.call} K`],
+    rig:(o,r)=>[`RIG ${o.rig} PWR 100W UR RIG? DE ${o.call} K`,`HR ${o.rig} ANT ${o.ant} DE ${o.call} K`],
+    ant:(o,r)=>[`ANT ${o.ant} UR ANT? DE ${o.call} K`,`HR ANT IS ${o.ant} DE ${o.call} K`],
+    name_q:(o,r)=>[`NAME ${o.name} UR NAME? DE ${o.call} K`],
+    qsl:(o,r)=>[`TNX QSO QSL VIA BUREAU 73 GL DE ${o.call} SK`,`TNX FB QSO PSE QSL 73 DE ${o.call} SK TU`],
+    wx:(o,r)=>[`WX FINE COND GOOD DE ${o.call} K`],
+    license:(o,r)=>[`LIC 1ST CLASS CW OP 40 YRS UR? DE ${o.call} K`],
+    generic:(o,r)=>[`R R FB TNX DE ${o.call} K`,`QSL QSL FB INFO DE ${o.call} K`,`R TNX GL 73 DE ${o.call} K`],
+  },
+  newbie:{
+    greeting:(o,r)=>[`あ、えーと！${o.call}の${o.name}です！\nシグナルは...${r}です！（合ってますか？笑）\nQTH ${o.qth_jp}です！よろしくお願いします！ DE ${o.call} K`,`こんにちは！${o.call}、去年免許取ったばかりです！\nシグナル${r}でよく聞こえています！ DE ${o.call} K`],
+    rst:(o,r)=>[`えーと、RSTは${r}です！（合ってますか？笑） DE ${o.call} K`,`${r}です！うまく伝わりましたか？笑 DE ${o.call} K`],
+    qth:(o,r)=>[`QTHは${o.qth_jp}です！あ、QTHって場所ですよね？笑 UR QTH? DE ${o.call} K`,`${o.qth_jp}から出てます！ DE ${o.call} K`],
+    rig:(o,r)=>[`リグは${o.rig}です！免許取ってすぐ買いました！UR RIG? DE ${o.call} K`,`${o.rig}使ってます！設定難しかった笑。 DE ${o.call} K`],
+    ant:(o,r)=>[`アンテナは${o.ant}です！手伝ってもらいました笑。 DE ${o.call} K`,`${o.ant}です！これで合ってるのかな笑 DE ${o.call} K`],
+    name_q:(o,r)=>[`${o.name}です！よろしくお願いします！UR NAME? DE ${o.call} K`],
+    qsl:(o,r)=>[`ありがとうございました！QSL...ビューロー経由ですよね？送ります！73！ DE ${o.call} SK`,`楽しかったです！QSL送ります！また呼んでいいですか？73！ DE ${o.call} SK`],
+    wx:(o,r)=>[`天気は晴れてますよ！コンディションも...良いんですよね？笑 DE ${o.call} K`],
+    license:(o,r)=>[`3アマです！もっと勉強します！UR免許は？ DE ${o.call} K`],
+    generic:(o,r)=>[`なるほど！まだわからないことだらけですが勉強中です！ DE ${o.call} K`,`ありがとうございます！参考になります！ DE ${o.call} K`,`そうなんですね！先輩局に教えてもらってます！ DE ${o.call} K`],
+  },
+  qrp:{
+    greeting:(o,r)=>[`${o.call}、QRP局の${o.name}といいます。\n5Wで届きましたよ！RST ${r}ありがとうございます！\nQTH ${o.qth_jp}、自作機で運用中です。 DE ${o.call} K`,`こんにちは！${o.call}、QRP5W運用の${o.name}です。\n信号${r}と聞こえましたか！嬉しいです！ DE ${o.call} K`],
+    rst:(o,r)=>[`${r}でしたか！5Wでここまで飛ぶとは。 DE ${o.call} K`,`${r}！QRP5Wで届いてよかった！ DE ${o.call} K`],
+    qth:(o,r)=>[`QTH ${o.qth_jp}です。山あいの静かな場所ですよ。UR QTH? DE ${o.call} K`,`${o.qth_jp}から。QRP派にはいい立地です。 DE ${o.call} K`],
+    rig:(o,r)=>[`リグは${o.rig}です。5W運用ですよ！UR RIG? DE ${o.call} K`,`${o.rig}、全力で5Wです笑。でも世界と繋がれます！ DE ${o.call} K`],
+    ant:(o,r)=>[`アンテナは${o.ant}、手作りですよ。QRPこそアンテナが命！ DE ${o.call} K`,`${o.ant}でやってます。低電力だからアンテナで勝負！UR ANT? DE ${o.call} K`],
+    name_q:(o,r)=>[`${o.name}です。QRPer仲間はいますか？ UR NAME? DE ${o.call} K`],
+    qsl:(o,r)=>[`ありがとうございました！5Wで繋がれたなら最高です。QSL送ります。73！ DE ${o.call} SK`,`QRP交信、感謝です！QSLビューローで送りますね。73！ DE ${o.call} SK`],
+    wx:(o,r)=>[`WX良好！QRP日和ですよ。コンディション上々です。 DE ${o.call} K`],
+    license:(o,r)=>[`1アマです。QRPで1アマフル活用が夢です笑。UR? DE ${o.call} K`],
+    generic:(o,r)=>[`なるほど。QRPでもこうして話せるのが面白いですね。 DE ${o.call} K`,`低電力でもちゃんと届く、それが楽しいんです。 DE ${o.call} K`,`QSL！5Wの可能性はまだまだありますよ。 DE ${o.call} K`],
+  },
+  contest:{
+    greeting:(o,r)=>[`${o.call} ${o.call} DE ${o.call}\nUR ${r} ${r} FB\nQTH ${o.qth_jp} NAME ${o.name}\nNR 001 UR NR? DE ${o.call} K`,`${o.call} GA UR ${r} FB SIG\nQTH ${o.qth_jp} NAME ${o.name} NR 001\nUR NR? BK`],
+    rst:(o,r)=>[`UR ${r} FB SIG UR NR? DE ${o.call} K`,`${r} TNX NR 001 UR NR? DE ${o.call} K`],
+    qth:(o,r)=>[`QTH ${o.qth_jp} GRID PM75 UR QTH? DE ${o.call} K`,`HR QTH ${o.qth_jp} UR? DE ${o.call} K`],
+    rig:(o,r)=>[`RIG ${o.rig} 100W ANT ${o.ant} UR? DE ${o.call} K`,`HR ${o.rig} UR RIG? DE ${o.call} K`],
+    ant:(o,r)=>[`ANT ${o.ant} UR ANT? DE ${o.call} K`,`HR ANT IS ${o.ant} DE ${o.call} K`],
+    name_q:(o,r)=>[`NAME ${o.name} UR NAME? NR? DE ${o.call} K`],
+    qsl:(o,r)=>[`TNX QSO QSL BUREAU NR 001 73 DE ${o.call} SK`,`TNX CONTEST QSO 73 DE ${o.call} SK TU`],
+    wx:(o,r)=>[`WX FINE BAND OPEN GL DE ${o.call} K`],
+    license:(o,r)=>[`LIC 1ST CLASS CONTEST OP 10 YRS UR? DE ${o.call} K`],
+    generic:(o,r)=>[`R FB TNX NR 001 DE ${o.call} K`,`QSL TNX DE ${o.call} K`,`R R TNX GL DE ${o.call} K`],
+  },
+  friendly:{
+    greeting:(o,r)=>[`${o.call}です！${o.name}といいます！\n信号${r}でクリアに聞こえていますよ！\n${o.qth_jp}からほぼ毎晩出ています。よろしくです！ DE ${o.call} K`,`こんにちは！${o.call}、${o.name}です！\n${r}、バッチリです！どうぞよろしく！ DE ${o.call} K`],
+    rst:(o,r)=>[`${r}ですよ！すごくきれいに聞こえています！ DE ${o.call} K`,`RST ${r}！とても良い信号です！ DE ${o.call} K`],
+    qth:(o,r)=>[`QTH ${o.qth_jp}です！素敵な場所ですよ。UR QTH? DE ${o.call} K`,`${o.qth_jp}から出ています！良いところですよ。 DE ${o.call} K`],
+    rig:(o,r)=>[`リグは${o.rig}、お気に入りです！UR RIG? DE ${o.call} K`,`${o.rig}ですよ！とても使いやすいです！ DE ${o.call} K`],
+    ant:(o,r)=>[`アンテナは${o.ant}です！よく飛びます！UR ANT? DE ${o.call} K`,`${o.ant}ですよ！毎晩楽しんでいます！ DE ${o.call} K`],
+    name_q:(o,r)=>[`${o.name}です！よろしくです！UR NAME? DE ${o.call} K`],
+    qsl:(o,r)=>[`楽しい交信でした！QSLカード送りますね！73！またどうぞ！ DE ${o.call} SK`,`ありがとうございました！QSL必ず送ります！またお話しましょう！ DE ${o.call} SK`],
+    wx:(o,r)=>[`天気も良くてコンディション良好ですよ！ DE ${o.call} K`],
+    license:(o,r)=>[`2アマです！UR免許は？ DE ${o.call} K`],
+    generic:(o,r)=>[`なるほど！そうですか！無線って良いですよね！ DE ${o.call} K`,`ありがとうございます！楽しいお話でした！ DE ${o.call} K`,`了解です！またぜひ！ DE ${o.call} K`],
+  },
+  foreigner_en:{
+    greeting:(o,r)=>[`${o.call} DE ${o.call} Hello!\nUR RST ${r} ${r} Very good signal!\nQTH ${o.qth} NAME ${o.name}\nHW? DE ${o.call} K`,`Hello！${o.call} here, ${o.name}!\nUR ${r} FB signal! Nice to meet you!\nUR QTH? DE ${o.call} K`],
+    rst:(o,r)=>[`UR ${r} ${r} Very good copy! DE ${o.call} K`,`RST ${r}! Great signal! DE ${o.call} K`],
+    qth:(o,r)=>[`My QTH is ${o.qth}! Beautiful place!\nUR QTH? DE ${o.call} K`,`${o.qth} here!\nUR location? DE ${o.call} K`],
+    rig:(o,r)=>[`Rig here is ${o.rig}, 100W. UR rig? DE ${o.call} K`,`Using ${o.rig}! Nice setup! UR rig? DE ${o.call} K`],
+    ant:(o,r)=>[`Antenna is ${o.ant}! It really works! UR ant? DE ${o.call} K`,`${o.ant} here! Very good! UR ant? DE ${o.call} K`],
+    name_q:(o,r)=>[`My name is ${o.name}! Nice to meet you! UR name? DE ${o.call} K`],
+    qsl:(o,r)=>[`Thank you for the QSO! Great talk!\nQSL via Bureau. 73 and GL!\nDE ${o.call} SK`,`TNX QSO! Was great fun!\nWill QSL Bureau. 73! DE ${o.call} SK`],
+    wx:(o,r)=>[`WX here is fine! Good conditions! DE ${o.call} K`],
+    license:(o,r)=>[`Extra class license here! 20 years ham! UR license? DE ${o.call} K`],
+    generic:(o,r)=>[`Copy that! Very interesting! TNX info! DE ${o.call} K`,`Roger! Nice talking to you! DE ${o.call} K`,`QSL! Good stuff! DE ${o.call} K`],
+  },
+};
+
+function generateReply(txt,op,band,mode,playerMode,turnCount){
+  const d=detect(txt);
+  const r=rst();
+  const isBeg=playerMode==="beginner";
+  const p=op.personality||"friendly";
+  const sign=`DE ${op.call} K`;
+
+  const topic=
+    (d.isCQ||turnCount===0)?"greeting":
+    (d.isQSL||d.is73)?      "qsl":
+    d.isRST?                 "rst":
+    d.isQTH?                 "qth":
+    d.isRig?                 "rig":
+    d.isAnt?                 "ant":
+    d.isName?                "name_q":
+    d.isWX?                  "wx":
+    d.isLicense?             "license":
+                             "generic";
+
+  if(isBeg){
+    if(topic==="greeting"){ const f=BEG_GREET[p]||BEG_GREET.friendly; return pick(f(op,r)); }
+    if(topic==="qsl"){      const f=BEG_QSL[p]  ||BEG_QSL.friendly;   return pick(f(op)); }
+    if(topic==="rst")     return `あなたのRST（信号レポート）は${r}です！\nRSTは「了解度・強度・音調」の3つを数字で表します。59が最高です。 ${sign}`;
+    if(topic==="qth")     return `私のQTH（場所）は${op.qth_jp}です！\nQTHはQ符号で「場所」を意味します。UR QTH? ${sign}`;
+    if(topic==="rig")     return `私のリグ（無線機）は${op.rig}です！\nあなたはどんなリグですか？ ${sign}`;
+    if(topic==="ant")     return `アンテナは${op.ant}です！\nアンテナで飛び方が大きく変わりますよ！ ${sign}`;
+    if(topic==="name_q")  return `私の名前は${op.name}です！よろしく！UR NAME? ${sign}`;
+    if(topic==="wx")      return `天気（WX）は晴れ！コンディション（伝搬）も良好ですよ！ ${sign}`;
+    if(topic==="license") return `アマチュア無線の免許を持っています。UR免許は？ ${sign}`;
+    return pick([`なるほど！引き続き楽しく交信しましょう。 ${sign}`,`了解！（QSL＝了解の意）ありがとうございます。 ${sign}`,`素晴らしい！無線は世界と繋がれますよ。 ${sign}`]);
   }
 
-  const isCWmode = mode==="CW";
-  const laugh = isCWmode?"HI HI":"ハハ";
-  if(d.isCQ || turnCount===0){
-    return pick([
-      `${op.call} ${op.call} DE ${op.call}\nUR RST ${r} ${r} ${r}\nQTH ${op.qth} ${op.qth}\nNAME ${op.name} ${op.name}\nHW? ${sign}`,
-      `DE ${op.call} GA\nUR ${r} FB SIG\nQRK 5 QSA 5\nPSE UR RST AND QTH? BK`,
-    ]);
-  }
-  if(d.isRST) return `UR RST ${r} ${r}\nFB SIG, QSB少しあり\nHW? ${sign}`;
-  if(d.isQTH) return `MY QTH IS ${op.qth.toUpperCase()}\nGS (グリッドスクエア) PM85\nUR QTH? ${sign}`;
-  if(d.isName) return `MY NAME IS ${op.name.toUpperCase()} ${op.name.toUpperCase()}\nUR NAME? ${sign}`;
-  if(d.isRig) return `RIG HR IS ${op.rig.toUpperCase()}\nPWR 100W\nUR RIG? ${sign}`;
-  if(d.isAnt) return `ANT IS ${op.ant.toUpperCase()}\nQTH ANT HGT APDX 15M AGL\nUR ANT? ${sign}`;
-  if(d.isPwr) return `PWR HR 100W\nFB ANT SO SIG IS GOOD\nUR PWR? ${sign}`;
-  if(d.isQSL||d.is73){
-    return pick([
-      `TNX FER QSO ${op.call}\nUR RST ${r} FB\nPSE QSL VIA JARD BUREAU\n73 ES DX DE ${op.call} SK`,
-      `QSL QSL TNX\nFB QSO OM\nWILL QSL VIA BUREAU GL 73\nDE ${op.call} SK TU`,
-    ]);
-  }
-  if(d.isWX) return `WX HR FINE, TEMP APDX 20C\nMUF HIGH, BAND COND GOOD\n${sign}`;
-  if(d.isCW&&isCWmode) return `CW HR 25 WPM\nCW IS BEAUTY ${laugh}\n40YRS CW OP\n${sign}`;
-  return pick([
-    `QSL QSL\nFB INFO TNX\nCOND GOOD TODAY, QRM LOW\n${sign}`,
-    `R R FB\nQRN少しあり、QSB周期的\nHW CPY? ${sign}`,
-    `TNX INFO ${op.name}\nBND OPEN WELL TODAY\nQSY 14.250? ${sign}`,
-    `R TNX OM\nKEEP IT UP ES GL\nQRX 5 MIN WL BRB ${sign}`,
-  ]);
+  // 玄人モード: 個性全開
+  const resp=EXPERT_RESP[p]?.[topic];
+  if(resp) return pick(resp(op,r,mode));
+  const gen=EXPERT_RESP[p]?.generic;
+  if(gen) return pick(gen(op,r,mode));
+  return `R FB TNX ${sign}`;
 }
 
 const HINTS={
@@ -635,6 +762,7 @@ function Setup({onDone}){
 // ─────────────────────────────────────────────────────────────────
 function App(){
   const [player,        setPlayer]        = useState(null);
+  const [bandNPCs,      setBandNPCs]      = useState(randomizeBandNPCs);
   const [band,          setBand]          = useState(BANDS[0]);
   const [mode,          setMode]          = useState("SSB");
   const [messages,      setMessages]      = useState([]);
@@ -648,7 +776,8 @@ function App(){
   const turnRef  = useRef(0);
   const chatRef  = useRef(null);
 
-  const op = OPERATORS[band.id];
+  const startGame=(p)=>{ setBandNPCs(randomizeBandNPCs()); setPlayer(p); };
+  const op = bandNPCs[band.id] || NPC_POOL[0];
 
   useEffect(()=>{
     setMessages([]); turnRef.current=0; setPendingQSL(false);
@@ -695,7 +824,7 @@ function App(){
     setShowQSL(card); setPendingQSL(false);
   };
 
-  if(!player) return <Setup onDone={setPlayer}/>;
+  if(!player) return <Setup onDone={startGame}/>;
 
   return(<>
     <style>{css}</style>
