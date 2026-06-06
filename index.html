@@ -1108,14 +1108,39 @@ function App(){
         </div>
 
         {/* INPUT */}
-        <div style={{background:"#080e08",borderTop:`2px solid ${G.panelBorder}`,padding:"7px 10px",display:"flex",gap:8,flexShrink:0}}>
-          <input value={input} onChange={e=>setInput(e.target.value)}
-            onKeyDown={e=>e.key==="Enter"&&sendMsg()}
-            placeholder={player.playerMode==="beginner" ? "話しかけてみよう..." : `DE ${player.callsign} ... K`}
-            style={{flex:1,background:G.greenFaint,border:`1px solid ${G.greenDim}`,color:G.green,padding:"9px 10px",borderRadius:player.playerMode==="beginner"?20:2,outline:"none",fontSize:13,minWidth:0}}
+        <div style={{background:"#080e08",borderTop:`2px solid ${G.panelBorder}`,padding:"7px 10px",display:"flex",gap:8,flexShrink:0,alignItems:"flex-end"}}>
+          <textarea
+            value={input}
+            onChange={e=>setInput(e.target.value)}
+            onKeyDown={e=>{
+              if(e.key==="Enter"){
+                // 直前の文字がEnter（改行）なら送信、そうでなければ改行
+                if(e.target.value.endsWith("\n") && e.target.value.trim()){
+                  e.preventDefault();
+                  sendMsg();
+                }
+                // else: 自然に改行を挿入（何もしない）
+              }
+            }}
+            placeholder={player.playerMode==="beginner" ? "話しかけてみよう...\n（2回Enterで送信）" : `DE ${player.callsign} ... K`}
+            rows={2}
+            style={{
+              flex:1,
+              background:G.greenFaint,
+              border:`1px solid ${G.greenDim}`,
+              color:G.green,
+              padding:"8px 10px",
+              borderRadius:player.playerMode==="beginner"?16:2,
+              outline:"none",
+              fontSize:13,
+              minWidth:0,
+              resize:"none",
+              fontFamily:"'Share Tech Mono',monospace",
+              lineHeight:1.4,
+            }}
           />
           <button onClick={()=>sendMsg()} disabled={typing||!input.trim()}
-            style={{background:typing?G.greenFaint:G.green,color:typing?G.greenDim:G.bg,border:"none",padding:"0 16px",borderRadius:player.playerMode==="beginner"?20:2,cursor:typing?"not-allowed":"pointer",fontFamily:"'Orbitron',monospace",fontSize:11,fontWeight:700,boxShadow:typing?"none":`0 0 10px ${G.green}66`,flexShrink:0}}>
+            style={{background:typing?G.greenFaint:G.green,color:typing?G.greenDim:G.bg,border:"none",padding:"10px 16px",borderRadius:player.playerMode==="beginner"?16:2,cursor:typing?"not-allowed":"pointer",fontFamily:"'Orbitron',monospace",fontSize:11,fontWeight:700,boxShadow:typing?"none":`0 0 10px ${G.green}66`,flexShrink:0}}>
             {player.playerMode==="beginner"?"送信":"TX"}
           </button>
         </div>
