@@ -290,9 +290,17 @@ function generateReply(txt,op,band,mode,playerMode,turnCount){
   return `R FB TNX ${sign}`;
 }
 
+// 初心者モードのヒント: {label:表示テキスト, text:実際に送信するテキスト}
 const HINTS={
-  beginner:(c)=>[`CQ CQ DE ${c} K`,`シグナルはどうですか？`,`QTH（場所）は？`,`お名前は？`,`リグ（無線機）は何ですか？`,`73！ありがとう！`],
-  expert:  (c)=>[`CQ CQ DE ${c} ${c} K`,`UR RST? BK`,`QTH? BK`,`RIG? ANT? BK`,`PSE QSL VIA BUREAU`,`73 DE ${c} SK`],
+  beginner:(c)=>[
+    {label:"📡 呼びかけてみる！",   text:`CQ CQ DE ${c} K`},
+    {label:"📶 聞こえてる？",       text:"シグナルはどうですか？"},
+    {label:"📍 どこにいる？",       text:"QTH（場所）は？"},
+    {label:"👤 お名前は？",         text:"お名前は？"},
+    {label:"📻 無線機は何？",       text:"リグ（無線機）は何ですか？"},
+    {label:"👋 ありがとう！またね！",text:"73！ありがとう！"},
+  ],
+  expert:(c)=>[`CQ CQ DE ${c} ${c} K`,`UR RST? BK`,`QTH? BK`,`RIG? ANT? BK`,`PSE QSL VIA BUREAU`,`73 DE ${c} SK`],
 };
 
 // ─────────────────────────────────────────────────────────────────
@@ -896,22 +904,69 @@ function App(){
           background:"radial-gradient(ellipse at center,#001500 0%,#000a00 100%)",
           borderLeft:`3px solid ${band.color}22`,borderRight:`3px solid ${band.color}22`,
         }}>
+          {/* 空のチャット画面 */}
           {messages.length===0&&(
-            <div style={{textAlign:"center",color:G.gray,fontSize:12,marginTop:32}}>
-              <div style={{fontSize:28,marginBottom:8}}>📡</div>
-              <div>{band.freq} · {mode}</div>
-              <div style={{marginTop:4}}>{op.call} が待機中...</div>
-              <div style={{marginTop:8,color:G.greenDim,fontSize:11}}>下のボタンか自由入力で交信開始！</div>
-            </div>
+            player.playerMode==="beginner" ? (
+              <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",flex:1,padding:24,gap:14}}>
+                <div style={{fontSize:52}}>{op.avatar}</div>
+                <div style={{textAlign:"center"}}>
+                  <div style={{fontFamily:"'Orbitron',monospace",fontSize:15,color:G.green,textShadow:`0 0 10px ${G.green}88`}}>{op.name}</div>
+                  <div style={{fontSize:11,color:G.gray,marginTop:4}}>{op.qth_jp}</div>
+                </div>
+                <div style={{
+                  background:"rgba(0,255,65,0.07)",
+                  border:`1px solid ${G.green}44`,
+                  borderRadius:12,
+                  padding:"12px 18px",
+                  maxWidth:280,
+                  textAlign:"center",
+                }}>
+                  <div style={{fontSize:13,color:G.green,marginBottom:6}}>👇 まずここを押してみよう！</div>
+                  <div style={{
+                    display:"inline-block",
+                    background:G.green,
+                    color:G.bg,
+                    borderRadius:20,
+                    padding:"6px 16px",
+                    fontSize:13,
+                    fontWeight:"bold",
+                  }}>📡 呼びかけてみる！</div>
+                  <div style={{fontSize:11,color:G.gray,marginTop:8}}>または下のボタンを押すか、自由に話しかけてね</div>
+                </div>
+              </div>
+            ) : (
+              <div style={{textAlign:"center",color:G.gray,fontSize:12,marginTop:32}}>
+                <div style={{fontSize:28,marginBottom:8}}>📡</div>
+                <div>{band.freq} · {mode}</div>
+                <div style={{marginTop:4}}>{op.call} が待機中...</div>
+                <div style={{marginTop:8,color:G.greenDim,fontSize:11}}>下のボタンか自由入力で交信開始！</div>
+              </div>
+            )
           )}
+
+          {/* チャットメッセージ */}
           {messages.map((msg,i)=>{
             const isMe=msg.role==="user";
+            const isBeg=player.playerMode==="beginner";
+            const senderLabel = isMe
+              ? (isBeg ? "あなた" : player.callsign)
+              : (isBeg ? op.name  : op.call);
             return(
               <div key={i} className="msgIn" style={{display:"flex",justifyContent:isMe?"flex-end":"flex-start",gap:6,alignItems:"flex-end"}}>
-                {!isMe&&<span style={{fontSize:18,flexShrink:0}}>{op.avatar}</span>}
-                <div style={{maxWidth:"78%"}}>
-                  <div style={{fontSize:10,color:G.gray,marginBottom:2,textAlign:isMe?"right":"left"}}>{isMe?player.callsign:op.call}</div>
-                  <div style={{background:isMe?G.greenFaint:"#0a1500",border:`1px solid ${isMe?G.greenDim:G.panelBorder}`,borderRadius:isMe?"8px 8px 2px 8px":"8px 8px 8px 2px",padding:"7px 11px",color:isMe?G.green:G.white,fontSize:13,lineHeight:1.5,whiteSpace:"pre-wrap"}}>
+                {!isMe&&<span style={{fontSize:isBeg?28:18,flexShrink:0}}>{op.avatar}</span>}
+                <div style={{maxWidth:"80%"}}>
+                  <div style={{fontSize:10,color:G.gray,marginBottom:2,textAlign:isMe?"right":"left"}}>{senderLabel}</div>
+                  <div style={{
+                    background: isMe ? (isBeg?"#003a20":G.greenFaint) : (isBeg?"#0d1a10":"#0a1500"),
+                    border:`1px solid ${isMe?(isBeg?"#00cc44":G.greenDim):(isBeg?"#1a4a2a":G.panelBorder)}`,
+                    borderRadius: isMe?"18px 18px 4px 18px":"18px 18px 18px 4px",
+                    padding: isBeg?"10px 14px":"7px 11px",
+                    color: isMe?G.green:G.white,
+                    fontSize: isBeg?14:13,
+                    lineHeight: isBeg?1.7:1.5,
+                    whiteSpace:"pre-wrap",
+                    boxShadow: isBeg&&isMe?`0 2px 8px rgba(0,255,65,0.15)`:"none",
+                  }}>
                     {msg.text}
                   </div>
                   <div style={{fontSize:10,color:G.gray,marginTop:2,textAlign:isMe?"right":"left"}}>{msg.ts.toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"})}</div>
@@ -928,10 +983,10 @@ function App(){
           <div style={{background:"#080e08",borderTop:`1px solid ${G.panelBorder}`,padding:"5px 10px",display:"flex",gap:8,alignItems:"center",flexShrink:0}}>
             {pendingQSL&&!alreadyHasCard&&(
               <button onClick={collectQSL} style={{background:G.amber,color:G.bg,border:"none",padding:"4px 10px",borderRadius:2,fontSize:11,fontFamily:"'Orbitron',monospace",cursor:"pointer",boxShadow:`0 0 10px ${G.amber}66`}}>
-                📮 QSL受領
+                📮 QSLカード受け取る
               </button>
             )}
-            {alreadyHasCard&&<span style={{fontSize:10,color:G.gray}}>✓ QSL取得済み</span>}
+            {alreadyHasCard&&<span style={{fontSize:10,color:G.gray}}>✓ カード取得済み</span>}
             {qslCollection.length>0&&(
               <button onClick={()=>setShowColl(s=>!s)} style={{background:"transparent",color:G.cyan,border:`1px solid ${G.cyan}44`,padding:"4px 8px",borderRadius:2,fontSize:11,cursor:"pointer"}}>
                 📁 ({qslCollection.length})
@@ -940,26 +995,42 @@ function App(){
           </div>
         )}
 
-        {/* HINTS */}
-        <div style={{background:"#080e08",borderTop:`1px solid ${G.panelBorder}`,padding:"4px 8px",display:"flex",gap:5,overflowX:"auto",flexShrink:0}}>
-          {hints.map((h,i)=>(
-            <button key={i} className="hint-btn" onClick={()=>sendMsg(h)}
-              style={{background:G.greenFaint,border:`1px solid ${G.greenDim}22`,color:G.greenDim,padding:"3px 8px",borderRadius:2,fontSize:10,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>
-              {h}
-            </button>
-          ))}
+        {/* HINTS — 初心者はラベル、玄人はそのままのテキスト */}
+        <div style={{background:"#080e08",borderTop:`1px solid ${G.panelBorder}`,padding:"6px 8px",display:"flex",gap:6,overflowX:"auto",flexShrink:0}}>
+          {hints.map((h,i)=>{
+            const isBeg=player.playerMode==="beginner";
+            const label=isBeg?h.label:h;
+            const text =isBeg?h.text :h;
+            return(
+              <button key={i} className="hint-btn" onClick={()=>sendMsg(text)}
+                style={{
+                  background: isBeg?"rgba(0,255,65,0.1)":G.greenFaint,
+                  border:`1px solid ${isBeg?G.green+"55":G.greenDim+"22"}`,
+                  color: isBeg?G.green:G.greenDim,
+                  padding: isBeg?"6px 12px":"3px 8px",
+                  borderRadius: isBeg?20:2,
+                  fontSize: isBeg?12:10,
+                  cursor:"pointer",
+                  whiteSpace:"nowrap",
+                  flexShrink:0,
+                  fontWeight: isBeg?"bold":"normal",
+                }}>
+                {label}
+              </button>
+            );
+          })}
         </div>
 
         {/* INPUT */}
         <div style={{background:"#080e08",borderTop:`2px solid ${G.panelBorder}`,padding:"7px 10px",display:"flex",gap:8,flexShrink:0}}>
           <input value={input} onChange={e=>setInput(e.target.value)}
             onKeyDown={e=>e.key==="Enter"&&sendMsg()}
-            placeholder={`DE ${player.callsign} ... K`}
-            style={{flex:1,background:G.greenFaint,border:`1px solid ${G.greenDim}`,color:G.green,padding:"9px 10px",borderRadius:2,outline:"none",fontSize:13,minWidth:0}}
+            placeholder={player.playerMode==="beginner" ? "話しかけてみよう..." : `DE ${player.callsign} ... K`}
+            style={{flex:1,background:G.greenFaint,border:`1px solid ${G.greenDim}`,color:G.green,padding:"9px 10px",borderRadius:player.playerMode==="beginner"?20:2,outline:"none",fontSize:13,minWidth:0}}
           />
           <button onClick={()=>sendMsg()} disabled={typing||!input.trim()}
-            style={{background:typing?G.greenFaint:G.green,color:typing?G.greenDim:G.bg,border:"none",padding:"0 14px",borderRadius:2,cursor:typing?"not-allowed":"pointer",fontFamily:"'Orbitron',monospace",fontSize:11,fontWeight:700,boxShadow:typing?"none":`0 0 10px ${G.green}66`,flexShrink:0}}>
-            TX
+            style={{background:typing?G.greenFaint:G.green,color:typing?G.greenDim:G.bg,border:"none",padding:"0 16px",borderRadius:player.playerMode==="beginner"?20:2,cursor:typing?"not-allowed":"pointer",fontFamily:"'Orbitron',monospace",fontSize:11,fontWeight:700,boxShadow:typing?"none":`0 0 10px ${G.green}66`,flexShrink:0}}>
+            {player.playerMode==="beginner"?"送信":"TX"}
           </button>
         </div>
       </div>
